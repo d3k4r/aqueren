@@ -1,5 +1,7 @@
 extern crate hyper;
 
+mod state;
+
 use hyper::server::{Server, Request, Response};
 
 fn hello(req: Request, res: Response) {
