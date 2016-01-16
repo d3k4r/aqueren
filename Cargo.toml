@@ -2,3 +2,6 @@
 name = "aqueren"
 version = "0.1.0"
 authors = ["d3k4r <d3k4r@users.noreply.github.com>"]
+
+[dependencies]
+hyper = "0.7.2"
