@@ -3,7 +3,7 @@ extern crate hyper;
 use hyper::server::{Server, Request, Response};
 
 fn hello(req: Request, res: Response) {
-    println!("Hey, what up.");
+    res.send(b"{greeting: \"Hey, what up.\"}").unwrap();
 }
 
 fn main() {
