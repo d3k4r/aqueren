@@ -7,5 +7,6 @@ fn hello(req: Request, res: Response) {
 }
 
 fn main() {
+    println!("Starting server on localhost:3001");
 	Server::http("localhost:3001").unwrap().handle(hello).unwrap();
 }
