@@ -1,1 +1,3 @@
 # aqueren
+
+`cargo run`
