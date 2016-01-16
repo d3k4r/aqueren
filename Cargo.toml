@@ -5,4 +5,3 @@ authors = ["d3k4r <d3k4r@users.noreply.github.com>"]
 
 [dependencies]
 hyper = "0.7.2"
-cargo-watch = "3.0.2"
