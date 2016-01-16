@@ -5,3 +5,4 @@ authors = ["d3k4r <d3k4r@users.noreply.github.com>"]
 
 [dependencies]
 hyper = "0.7.2"
+rustc-serialize = "0.3"

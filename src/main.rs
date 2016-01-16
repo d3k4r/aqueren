@@ -1,11 +1,17 @@
 extern crate hyper;
+extern crate rustc_serialize;
+
+use rustc_serialize::json;
 
 mod state;
 
 use hyper::server::{Server, Request, Response};
 
 fn hello(req: Request, res: Response) {
-    res.send(b"{greeting: \"Hey, what up.\"}").unwrap();
+	let game = state::initialState();
+	let encoded = json::encode(&game).unwrap();
+
+	res.send(encoded.as_bytes()).unwrap();
 }
 
 fn main() {
