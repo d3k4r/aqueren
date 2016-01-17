@@ -43,7 +43,7 @@ fn emptyShares() -> PlayerShares {
 }
 
 fn newPlayer() -> Player {
-    Player { money: 0, shares: emptyShares() }
+    Player { money: 6000, shares: emptyShares() }
 }
 
 pub fn initialState() -> Game {
