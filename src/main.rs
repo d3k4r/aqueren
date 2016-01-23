@@ -31,44 +31,20 @@ fn handle_request(mut req: Request, mut res: Response) {
         _ => panic!("Unsupported URI format."),
     };
 
-    match path.as_ref() {
-        "/" => {
-            match req.method {
-                Get => {
-                    try_return!(res.send(b"Hey, what up."));
-                },
-                _ => {
-                    *res.status_mut() = hyper::BadRequest;
-                    (*res.headers_mut()).set(ContentLength(0));
-                }
-            }
+    match (req.method, path.as_ref()) {
+        (Get, "/") => {
+            try_return!(res.send(b"Hey, what up."));
         },
-        "/state" => {
-            match req.method {
-                Get => {
-                    let game = state::initial_state();
-                    let encoded = json::encode(&game).unwrap();
-                    try_return!(res.send(encoded.as_bytes()));
-                },
-                _ => {
-                    *res.status_mut() = hyper::BadRequest;
-                    (*res.headers_mut()).set(ContentLength(0));
-                }
-            }
+        (Get, "/state") => {
+            let game = state::initial_state();
+            let encoded = json::encode(&game).unwrap();
+            try_return!(res.send(encoded.as_bytes()));
         },
-        "/turn" => {
-            match req.method {
-                Post => {
-                    try_return!(res.send(body.as_bytes()));
-                },
-                _ => {
-                    *res.status_mut() = hyper::BadRequest;
-                    (*res.headers_mut()).set(ContentLength(0));
-                }
-            }
+        (Post, "/turn") => {
+            try_return!(res.send(body.as_bytes()));
         },
         _ => {
-            *res.status_mut() = hyper::NotFound;
+            *res.status_mut() = hyper::BadRequest;
             (*res.headers_mut()).set(ContentLength(0));
         }
     }
