@@ -32,9 +32,6 @@ fn handle_request(mut req: Request, mut res: Response) {
     };
 
     match (req.method, path.as_ref()) {
-        (Get, "/") => {
-            try_return!(res.send(b"Hey, what up."));
-        },
         (Get, "/state") => {
             let game = state::initial_state();
             let encoded = json::encode(&game).unwrap();
