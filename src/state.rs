@@ -109,16 +109,16 @@ fn has_tile_on_slot(tiles: & Vec<Tile>, row: u8, col: u8) -> bool {
 }
 
 fn initial_slots(starting_tiles: Vec<Tile>) -> Vec<Slot> {
-    let slots: Vec<Slot> = (0..COLS)
-        .flat_map(|col| {
-            let rows = 0..ROWS;
-            let res: Vec<Slot> = rows.map(|row| {
-                let has_tile = has_tile_on_slot(&starting_tiles, row, col);
-                Slot { row: row, col: col, hotel: None, has_tile: has_tile } 
-            }).collect();
-            res
-        }).collect();
-    slots
+    (0..COLS).flat_map(|col| -> Vec<Slot> {
+        (0..ROWS).map(|row| {
+            Slot { 
+                row: row, 
+                col: col, 
+                hotel: None, 
+                has_tile: has_tile_on_slot(&starting_tiles, row, col)
+            } 
+        }).collect()
+    }).collect()
 }
 
 pub fn initial_state() -> Game {
