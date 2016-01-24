@@ -111,3 +111,33 @@ pub fn initial_state() -> Game {
         merge_decision: None
     }
 }
+
+#[test]
+fn players_start_with_six_tiles() {
+    let state = initial_state();
+    for player in state.players {
+        assert_eq!(player.tiles.len(), 6);
+    }
+}
+
+#[test]
+fn players_start_with_6000_in_cash() {
+    let state = initial_state();
+    for player in state.players {
+        assert_eq!(player.money, 6000);
+    }
+}
+
+#[test]
+fn players_start_with_zero_shares() {
+    let state = initial_state();
+    for player in state.players {
+        assert_eq!(player.shares.luxor, 0);
+        assert_eq!(player.shares.tower, 0);
+        assert_eq!(player.shares.american, 0);
+        assert_eq!(player.shares.festival, 0);
+        assert_eq!(player.shares.worldwide, 0);
+        assert_eq!(player.shares.continental, 0);
+        assert_eq!(player.shares.imperial, 0);
+    }
+}
