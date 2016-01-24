@@ -82,34 +82,43 @@ fn new_player(id: PlayerId, tiles: Vec<Tile>) -> Player {
     Player { id: id, money: 6000, shares: empty_shares(), tiles: tiles }
 }
 
-fn choose_tiles(tiles: Vec<Tile>, count: usize) -> Vec<Tile> {
+fn choose_tiles(tiles: Vec<Tile>, count: usize) -> (Vec<Tile>, Vec<Tile>) {
     let mut remaining_tiles = tiles;
     let mut random_tiles = Vec::new();
     for _ in 0..count {
         let random_index = (rand::random::<i8>() as usize) % remaining_tiles.len();
         random_tiles.push(remaining_tiles.remove(random_index));
     }
-    random_tiles
+    (random_tiles, remaining_tiles)
 }
 
 pub fn initial_state() -> Game {
-    let slots: Vec<Slot> = (0..COLS)
+    let mut slots: Vec<Slot> = (0..COLS)
         .flat_map(|col| {
             let rows = 0..ROWS;
             let res: Vec<Slot> = rows.map(|row| Slot { row: row, col: col, hotel: None, has_tile: false } ).collect();
             res
         }).collect();
     let tiles = (0..TILES).map(|i| Tile { row: i / COLS, col: i % ROWS }).collect();
-    let mut chosen_tiles = choose_tiles(tiles, 6*PLAYERS as usize);
-    let tiles1 = chosen_tiles.split_off(18);
-    let tiles2 = chosen_tiles.split_off(12);
-    let tiles3 = chosen_tiles.split_off(6);
-    let tiles4 = chosen_tiles;
+    let (starting_tiles, remaining_tiles) = choose_tiles(tiles, PLAYERS as usize);
+    let (tiles1, remaining_tiles1) = choose_tiles(remaining_tiles, 6 as usize);
+    let (tiles2, remaining_tiles2) = choose_tiles(remaining_tiles1, 6 as usize);
+    let (tiles3, remaining_tiles3) = choose_tiles(remaining_tiles2, 6 as usize);
+    let (tiles4, _) = choose_tiles(remaining_tiles3, 6 as usize);
     let players = vec![
         new_player(1, tiles1), 
         new_player(2, tiles2),
         new_player(3, tiles3),
         new_player(4, tiles4)];
+    for tile in starting_tiles {
+        let found_slot = slots.iter_mut().find(|slot| slot.row == tile.row && slot.col == tile.col);
+        match found_slot {
+            Some(slot) => {
+                slot.has_tile = true;
+            }
+            None => panic!("No slot found!")
+        }
+    }
     Game {
         board: Board { slots: slots },
         players: players, 
