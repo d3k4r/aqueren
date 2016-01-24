@@ -47,6 +47,27 @@ struct Slot {
     hotel: Option<Hotel>
 }
 
+enum Action {
+    PlaceTile,
+    HandleMergeStocks,
+    BuyStocks,
+    DrawTile,
+    EndGame
+}
+
+pub struct PlaceTile {
+    player: PlayerId,
+    tile: Tile
+}
+
+pub struct HandleMergeStocks {
+    hold: i8,
+    sell: i8,
+    trade: i8
+}
+
+type BuyStocks = PlayerShares;
+
 #[derive(RustcDecodable, RustcEncodable)]
 enum Hotel { Luxor, Tower, American, Festival, Worldwide, Continental, Imperial }
 
