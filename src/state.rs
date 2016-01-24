@@ -39,11 +39,14 @@ struct Tile { row: i8, col: i8 }
 
 #[derive(RustcDecodable, RustcEncodable)]
 struct Board {
-    slots: Vec<Vec<Slot>>
+    slots: Vec<Slot>
 }
 
 #[derive(RustcDecodable, RustcEncodable)]
 struct Slot {
+    row: i8,
+    col: i8,
+    has_tile: bool,
     hotel: Option<Hotel>
 }
 
@@ -90,9 +93,12 @@ fn choose_tiles(tiles: Vec<Tile>, count: usize) -> Vec<Tile> {
 }
 
 pub fn initial_state() -> Game {
-    let slots = (0..COLS)
-        .map(|_| (0..ROWS).map(|_| Slot { hotel: None } ).collect() )
-        .collect();
+    let slots: Vec<Slot> = (0..COLS)
+        .flat_map(|col| {
+            let rows = 0..ROWS;
+            let res: Vec<Slot> = rows.map(|row| Slot { row: row, col: col, hotel: None, has_tile: false } ).collect();
+            res
+        }).collect();
     let tiles = (0..TILES).map(|i| Tile { row: i / COLS, col: i % ROWS }).collect();
     let mut chosen_tiles = choose_tiles(tiles, 6*PLAYERS as usize);
     let tiles1 = chosen_tiles.split_off(18);
@@ -140,4 +146,11 @@ fn players_start_with_zero_shares() {
         assert_eq!(player.shares.continental, 0);
         assert_eq!(player.shares.imperial, 0);
     }
+}
+
+#[test]
+fn game_starts_with_four_placed_tiles() {
+    let state = initial_state();
+    let board_tiles = state.board.slots.iter().filter(|s| s.has_tile).count();
+    assert_eq!(board_tiles, 4)
 }
