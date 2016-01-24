@@ -86,7 +86,7 @@ fn choose_tiles(tiles: Vec<Tile>, count: u8) -> (Vec<Tile>, Vec<Tile>) {
     let mut remaining_tiles = tiles;
     let mut random_tiles = Vec::new();
     for _ in 0..count {
-        let random_index = (rand::random::<u8>() as usize) % remaining_tiles.len();
+        let random_index = rand::random::<usize>() % remaining_tiles.len();
         random_tiles.push(remaining_tiles.remove(random_index));
     }
     (random_tiles, remaining_tiles)
