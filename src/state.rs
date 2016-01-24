@@ -8,15 +8,20 @@ const PLAYERS: i8 = 4;
 #[derive(RustcDecodable, RustcEncodable)]
 pub struct Game {
     players: Vec<Player>,
-    board: Board
+    board: Board,
+    turn: PlayerId,
+    merge_decision: Option<PlayerId>
 }
 
 #[derive(RustcDecodable, RustcEncodable)]
 struct Player {
+    id: PlayerId,
     money: i32,
     shares: PlayerShares,
     tiles: Vec<Tile>
 }
+
+type PlayerId = i8;
 
 #[derive(RustcDecodable, RustcEncodable)]
 struct PlayerShares {
@@ -49,12 +54,12 @@ fn empty_shares() -> PlayerShares {
     PlayerShares { luxor: 0, tower: 0, american: 0, festival: 0, worldwide: 0, continental: 0, imperial: 0 }
 }
 
-fn new_player(tiles: Vec<Tile>) -> Player {
-    Player { money: 6000, shares: empty_shares(), tiles: tiles }
+fn new_player(id: PlayerId, tiles: Vec<Tile>) -> Player {
+    Player { id: id, money: 6000, shares: empty_shares(), tiles: tiles }
 }
 
 fn choose_tiles(tiles: Vec<Tile>, count: usize) -> Vec<Tile> {
-    let mut remaining_tiles = tiles.clone();
+    let mut remaining_tiles = tiles;
     let mut random_tiles = Vec::new();
     for _ in 0..count {
         let random_index = (rand::random::<i8>() as usize) % remaining_tiles.len();
@@ -74,9 +79,14 @@ pub fn initial_state() -> Game {
     let tiles3 = chosen_tiles.split_off(6);
     let tiles4 = chosen_tiles;
     let players = vec![
-        new_player(tiles1), 
-        new_player(tiles2),
-        new_player(tiles3),
-        new_player(tiles4)];
-    Game { board: Board { slots: slots }, players: players }
+        new_player(1, tiles1), 
+        new_player(2, tiles2),
+        new_player(3, tiles3),
+        new_player(4, tiles4)];
+    Game {
+        board: Board { slots: slots },
+        players: players, 
+        turn: 1, 
+        merge_decision: None
+    }
 }
