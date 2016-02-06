@@ -2,7 +2,7 @@ extern crate hyper;
 extern crate rustc_serialize;
 
 
-mod state;
+mod game;
 
 use std::io::Read;
 use rustc_serialize::json;
@@ -33,7 +33,7 @@ fn handle_request(mut req: Request, mut res: Response) {
 
     match (req.method, path.as_ref()) {
         (Get, "/state") => {
-            let game = state::new_game();
+            let game = game::new_game();
             let encoded = json::encode(&game).unwrap();
             try_return!(res.send(encoded.as_bytes()));
         },
