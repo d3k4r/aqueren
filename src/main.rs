@@ -33,7 +33,7 @@ fn handle_request(mut req: Request, mut res: Response) {
 
     match (req.method, path.as_ref()) {
         (Get, "/state") => {
-            let game = state::initial_state();
+            let game = state::new_game();
             let encoded = json::encode(&game).unwrap();
             try_return!(res.send(encoded.as_bytes()));
         },

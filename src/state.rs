@@ -109,7 +109,7 @@ pub fn initial_slots(starting_tiles: Vec<Tile>) -> Vec<Slot> {
     }).collect()
 }
 
-pub fn initial_state() -> Game {
+pub fn new_game() -> Game {
     let all_tiles = (0..TILES).map(|i| Tile { row: i / COLS, col: i % ROWS }).collect();
     let (starting_tiles, remaining_tiles) = choose_tiles(all_tiles, PLAYERS);
     let players = new_players(remaining_tiles);
@@ -166,24 +166,24 @@ mod tests {
 
     #[test]
     fn players_start_with_six_tiles() {
-        let state = initial_state();
-        for player in state.players {
+        let game = new_game();
+        for player in game.players {
             assert_eq!(player.tiles.len(), 6);
         }
     }
 
     #[test]
     fn players_start_with_6000_in_cash() {
-        let state = initial_state();
-        for player in state.players {
+        let game = new_game();
+        for player in game.players {
             assert_eq!(player.money, 6000);
         }
     }
 
     #[test]
     fn players_start_with_zero_shares() {
-        let state = initial_state();
-        for player in state.players {
+        let game = new_game();
+        for player in game.players {
             assert_eq!(player.shares.luxor, 0);
             assert_eq!(player.shares.tower, 0);
             assert_eq!(player.shares.american, 0);
@@ -196,8 +196,8 @@ mod tests {
 
     #[test]
     fn game_starts_with_four_placed_tiles() {
-        let state = initial_state();
-        let board_tiles = state.board.slots.iter().filter(|s| s.has_tile).count();
+        let game = new_game();
+        let board_tiles = game.board.slots.iter().filter(|s| s.has_tile).count();
         assert_eq!(board_tiles, 4)
     }
 
@@ -225,11 +225,11 @@ mod tests {
                             [ (1,0), (1,1), (1,2), (1,3), (1,4), (1,5) ],
                             [ (2,2), (2,1), (2,2), (2,3), (2,4), (2,5) ],
                             [ (3,3), (3,1), (3,2), (3,3), (3,4), (3,5) ]];
-        let state = new_game_with_tiles(start_tiles, player_tiles);
+        let game = new_game_with_tiles(start_tiles, player_tiles);
         let tile_to_place = Tile { row: 5, col: 11 };
         let action = Action::PlaceTile { player: 1, tile: tile_to_place };
-        let state_after = play_turn(&state, action);
-        assert_boards_equal(&tiles_to_board(&end_tiles), &state_after.board);
+        let game_after = play_turn(&game, action);
+        assert_boards_equal(&tiles_to_board(&end_tiles), &game_after.board);
     }
 
     fn new_game_with_tiles(start_tiles: BoardTiles, player_tiles: PlayerTiles) -> Game {
