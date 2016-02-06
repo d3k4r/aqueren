@@ -50,6 +50,9 @@ pub struct Slot {
     hotel: Option<Hotel>
 }
 
+#[derive(RustcDecodable, RustcEncodable, Clone, PartialEq)]
+pub enum Hotel { Luxor, Tower, American, Festival, Worldwide, Continental, Imperial }
+
 #[derive(Debug)]
 pub enum Action {
     PlaceTile { player: PlayerId, tile: Tile },
@@ -59,15 +62,17 @@ pub enum Action {
     EndGame
 }
 
-#[derive(RustcDecodable, RustcEncodable, Clone, PartialEq)]
-pub enum Hotel { Luxor, Tower, American, Festival, Worldwide, Continental, Imperial }
-
-fn empty_shares() -> PlayerShares {
-    PlayerShares { luxor: 0, tower: 0, american: 0, festival: 0, worldwide: 0, continental: 0, imperial: 0 }
-}
-
-pub fn new_player(id: PlayerId, tiles: Vec<Tile>) -> Player {
-    Player { id: id, money: 6000, shares: empty_shares(), tiles: tiles }
+pub fn new_game() -> Game {
+    let all_tiles = (0..TILES).map(|i| Tile { row: i / COLS, col: i % ROWS }).collect();
+    let (starting_tiles, remaining_tiles) = choose_tiles(all_tiles, PLAYERS);
+    let players = new_players(remaining_tiles);
+    let slots = initial_slots(starting_tiles);
+    Game {
+        board: Board { slots: slots },
+        players: players, 
+        turn: 1, 
+        merge_decision: None
+    }
 }
 
 fn choose_tiles(tiles: Vec<Tile>, count: u8) -> (Vec<Tile>, Vec<Tile>) {
@@ -92,8 +97,12 @@ fn new_players(tiles: Vec<Tile>) -> Vec<Player>{
     players
 }
 
-fn has_tile_on_slot(tiles: & Vec<Tile>, row: u8, col: u8) -> bool {
-    tiles.iter().any(|t| t.row == row && t.col == col)
+pub fn new_player(id: PlayerId, tiles: Vec<Tile>) -> Player {
+    Player { id: id, money: 6000, shares: empty_shares(), tiles: tiles }
+}
+
+fn empty_shares() -> PlayerShares {
+    PlayerShares { luxor: 0, tower: 0, american: 0, festival: 0, worldwide: 0, continental: 0, imperial: 0 }
 }
 
 pub fn initial_slots(starting_tiles: Vec<Tile>) -> Vec<Slot> {
@@ -109,17 +118,8 @@ pub fn initial_slots(starting_tiles: Vec<Tile>) -> Vec<Slot> {
     }).collect()
 }
 
-pub fn new_game() -> Game {
-    let all_tiles = (0..TILES).map(|i| Tile { row: i / COLS, col: i % ROWS }).collect();
-    let (starting_tiles, remaining_tiles) = choose_tiles(all_tiles, PLAYERS);
-    let players = new_players(remaining_tiles);
-    let slots = initial_slots(starting_tiles);
-    Game {
-        board: Board { slots: slots },
-        players: players, 
-        turn: 1, 
-        merge_decision: None
-    }
+fn has_tile_on_slot(tiles: & Vec<Tile>, row: u8, col: u8) -> bool {
+    tiles.iter().any(|t| t.row == row && t.col == col)
 }
 
 pub fn play_turn(game: &Game, action: Action) -> Game {
