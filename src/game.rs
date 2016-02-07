@@ -141,15 +141,12 @@ fn place_tile(game: &Game, player: u8, tile: &Tile) -> Game {
 }
 
 fn place_tile_on_board(board: &Board, tile: &Tile) -> Board {
-    println!("Tile {:?}", tile);
     let slots = board.slots
         .iter()
         .map(|s| {
             if s.row == tile.row && s.col == tile.col {
-                println!("Match! ({},{})", s.row, s.col);
                 Slot { row: s.row, col: s.col, has_tile: true, hotel: s.hotel.clone() }
             } else {
-                println!("No match! ({},{})", s.row, s.col);
                 s.clone()
             }
         })
