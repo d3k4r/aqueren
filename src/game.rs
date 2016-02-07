@@ -62,6 +62,11 @@ pub enum Action {
     EndGame
 }
 
+pub fn new_actions() -> Vec<Action> {
+    let actions: Vec<Action> = Vec::new();
+    actions
+}
+
 pub fn new_game() -> Game {
     let all_tiles = (0..TILES).map(|i| Tile { row: i / COLS, col: i % ROWS }).collect();
     let (starting_tiles, remaining_tiles) = choose_tiles(all_tiles, PLAYERS);
