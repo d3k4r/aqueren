@@ -76,21 +76,15 @@ fn has_tile_on_slot(tiles: & Vec<Tile>, row: u8, col: u8) -> bool {
 }
 
 pub fn compute_state(last_state: &Game, actions: &Vec<Action>) -> Game {
-    let mut state = Game {
-        board: last_state.board.clone(),
-        players: last_state.players.clone(),
-        turn: last_state.turn.clone(),
-        merge_decision: last_state.merge_decision.clone()
-    };
-    for action in actions {
-    }
-    state
+    actions.iter().fold(last_state.clone(), |game, action| {
+        play_turn(&game, action)
+    })
 }
 
-pub fn play_turn(game: &Game, action: Action) -> Game {
-    match action {
-        Action::PlaceTile { player, tile } => {
-            place_tile(game, player, &tile)
+pub fn play_turn(game: &Game, action: &Action) -> Game {
+    match *action {
+        Action::PlaceTile { ref player, ref tile } => {
+            place_tile(game, player.clone(), tile)
         }
         _ => panic!(format!("I don't know how to play a turn with action {:?}", action))
     }
@@ -191,7 +185,7 @@ mod tests {
         let game = new_game_with_tiles(start_tiles, player_tiles);
         let tile_to_place = Tile::new(5,11).unwrap();
         let action = Action::PlaceTile { player: PlayerId::One, tile: tile_to_place };
-        let game_after = play_turn(&game, action);
+        let game_after = play_turn(&game, &action);
         assert_boards_equal(&tiles_to_board(&end_tiles), &game_after.board);
     }
 
