@@ -79,8 +79,8 @@ pub fn compute_state(last_state: &Game, actions: &Vec<Action>) -> Game {
     let mut state = Game {
         board: last_state.board.clone(),
         players: last_state.players.clone(),
-        turn: last_state.turn,
-        merge_decision: last_state.merge_decision
+        turn: last_state.turn.clone(),
+        merge_decision: last_state.merge_decision.clone()
     };
     for action in actions {
     }
