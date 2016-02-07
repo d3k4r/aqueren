@@ -9,6 +9,7 @@ use hyper::{Get, Post};
 use hyper::header::ContentLength;
 use hyper::server::{Handler, Server, Request, Response};
 use hyper::uri::RequestUri::AbsolutePath;
+use game::{Action, Game};
 
 macro_rules! try_return(
     ($e:expr) => {{
@@ -20,8 +21,8 @@ macro_rules! try_return(
     );
 
 struct GameHandler {
-    actions: Vec<game::Action>,
-    starting_board: game::Game
+    actions: Vec<Action>,
+    starting_board: Game
 }
 
 impl Handler for GameHandler {
