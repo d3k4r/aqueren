@@ -75,13 +75,16 @@ fn has_tile_on_slot(tiles: & Vec<Tile>, row: u8, col: u8) -> bool {
     tiles.iter().any(|t| t.row() == row && t.col() == col)
 }
 
-pub fn compute_state(last_state: &Game, actions: &Vec<Action>) -> Game {
-    actions.iter().fold(last_state.clone(), |game, action| {
-        play_turn(&game, action)
+pub fn compute_state(last_state: &Game, actions: &Vec<Action>) -> TurnResult {
+    actions.iter().fold(TurnResult::Success(last_state.clone()), |last_result, action| {
+        match last_result {
+            TurnResult::Success(game) => { play_turn(&game, action) }
+            TurnResult::Error(_) => { last_result }
+        }
     })
 }
 
-pub fn play_turn(game: &Game, action: &Action) -> Game {
+pub fn play_turn(game: &Game, action: &Action) -> TurnResult {
     match *action {
         Action::PlaceTile { ref player, ref tile } => {
             place_tile(game, player.clone(), tile)
@@ -90,13 +93,28 @@ pub fn play_turn(game: &Game, action: &Action) -> Game {
     }
 }
 
-fn place_tile(game: &Game, player: PlayerId, tile: &Tile) -> Game {
-    Game {
-        board: place_tile_on_board(&game.board, &tile),
-        players: game.players.clone(),
-        turn: game.turn.clone(),
-        merge_decision: game.merge_decision.clone()
+fn place_tile(game: &Game, player: PlayerId, tile: &Tile) -> TurnResult {
+    if game_player_has_tile(game, player.clone(), tile) {
+        TurnResult::Success(Game {
+            board: place_tile_on_board(&game.board, &tile),
+            players: game.players.clone(),
+            turn: game.turn.clone(),
+            merge_decision: game.merge_decision.clone()
+        })
+    } else {
+        let error_msg = format!("Error placing tile: player {:?} does not have tile {:?}", player, *tile);
+        TurnResult::Error(error_msg)
     }
+}
+
+fn game_player_has_tile(game: &Game, player: PlayerId, tile: &Tile) -> bool {
+    game.players.iter()
+        .find(|p| p.id == player)
+        .map_or(false, |p| player_has_tile(p, tile))
+}
+
+fn player_has_tile(player: &Player, tile: &Tile) -> bool {
+    player.tiles.iter().any(|t| *t == *tile)
 }
 
 fn place_tile_on_board(board: &Board, tile: &Tile) -> Board {
@@ -169,12 +187,40 @@ mod tests {
                            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
-        let end_tiles =   [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        let end_tiles =   [[0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                            [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                           [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1],
+                           [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
+        let player_tiles = [[ (0,0), (0,1), (0,2), (0,3), (0,4), (0,5) ],
+                            [ (1,0), (1,1), (1,2), (1,3), (1,4), (1,5) ],
+                            [ (2,2), (2,1), (2,2), (2,3), (2,4), (2,5) ],
+                            [ (3,3), (3,1), (3,2), (3,3), (3,4), (3,5) ]];
+        let game = new_game_with_tiles(start_tiles, player_tiles);
+        let tile_to_place = Tile::new(0,2).unwrap();
+        let action = Action::PlaceTile { player: PlayerId::One, tile: tile_to_place };
+        match play_turn(&game, &action) {
+            TurnResult::Success(game_after) => {
+                assert_boards_equal(&tiles_to_board(&end_tiles), &game_after.board);
+            }
+            _ => {
+                panic!("Placing a valid tile failed")
+            }
+        }
+    }
+
+    #[test]
+    fn placing_a_tile_fails_if_player_does_not_have_tile() {
+        let start_tiles = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
                            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
@@ -185,8 +231,12 @@ mod tests {
         let game = new_game_with_tiles(start_tiles, player_tiles);
         let tile_to_place = Tile::new(5,11).unwrap();
         let action = Action::PlaceTile { player: PlayerId::One, tile: tile_to_place };
-        let game_after = play_turn(&game, &action);
-        assert_boards_equal(&tiles_to_board(&end_tiles), &game_after.board);
+        match play_turn(&game, &action) {
+            TurnResult::Success(game) => {
+                panic!("Placing a tile succeeded when player did not have tile")
+            }
+            _ => {}
+        }
     }
 
     fn new_game_with_tiles(start_tiles: BoardTiles, player_tiles: PlayerTiles) -> Game {

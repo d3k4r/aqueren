@@ -4,7 +4,7 @@ extern crate rustc_serialize;
 mod game;
 mod types;
 
-use types::{Action, Game};
+use types::{Action, Game, TurnResult};
 
 use std::io::Read;
 use rustc_serialize::json;
@@ -43,9 +43,16 @@ impl Handler for GameHandler {
 
         match (req.method, path.as_ref()) {
             (Get, "/state") => {
-                let state = game::compute_state(initial_game, actions);
-                let encoded = json::encode(&state).unwrap();
-                try_return!(res.send(encoded.as_bytes()));
+                let result = game::compute_state(initial_game, actions);
+                match result {
+                    TurnResult::Success(game) => {
+                        let encoded = json::encode(&game).unwrap();
+                        try_return!(res.send(encoded.as_bytes()));
+                    }
+                    TurnResult::Error(error) => {
+                        try_return!(res.send(error.as_bytes()));
+                    }
+                }
             },
             (Post, "/turn") => {
                 try_return!(res.send(body.as_bytes()));

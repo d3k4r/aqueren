@@ -19,7 +19,7 @@ pub struct Player {
     pub tiles: Vec<Tile>
 }
 
-#[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
+#[derive(RustcDecodable, RustcEncodable, Debug, Clone, PartialEq)]
 pub enum PlayerId { One, Two, Three, Four }
 
 impl PlayerId {
@@ -87,4 +87,9 @@ pub enum Action {
     BuyStocks,
     DrawTile,
     EndGame
+}
+
+pub enum TurnResult {
+    Success(Game),
+    Error(String)
 }
