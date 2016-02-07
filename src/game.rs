@@ -93,18 +93,25 @@ pub fn play_turn(game: &Game, action: &Action) -> TurnResult {
     }
 }
 
-fn place_tile(game: &Game, player: PlayerId, tile: &Tile) -> TurnResult {
-    if game_player_has_tile(game, player.clone(), tile) {
-        TurnResult::Success(Game {
-            board: place_tile_on_board(&game.board, &tile),
-            players: game.players.clone(),
-            turn: game.turn.clone(),
-            merge_decision: game.merge_decision.clone()
-        })
-    } else {
-        let error_msg = format!("Error placing tile: player {:?} does not have tile {:?}", player, *tile);
-        TurnResult::Error(error_msg)
+fn place_tile(game: &Game, player_id: PlayerId, tile: &Tile) -> TurnResult {
+    if !game_player_has_tile(game, player_id.clone(), tile) {
+        let error_msg = format!("Error placing tile: player {:?} does not have tile {:?}", player_id, *tile);
+        return TurnResult::Error(error_msg)
     }
+    let new_players = remove_tile_from_player(game.players.clone(), player_id.clone(), tile);
+    TurnResult::Success(Game {
+        board: place_tile_on_board(&game.board, &tile),
+        players: new_players,
+        turn: game.turn.clone(),
+        merge_decision: game.merge_decision.clone()
+    })
+}
+
+fn remove_tile_from_player(mut players: Vec<Player>, player_id: PlayerId, tile: &Tile) -> Vec<Player> {
+    let player_index = players.iter().position(|p| p.id == player_id).unwrap();
+    let tile_index = players[player_index].tiles.iter().position(|t| *t == *tile).unwrap();
+    players[player_index].tiles.remove(tile_index);
+    players
 }
 
 fn game_player_has_tile(game: &Game, player: PlayerId, tile: &Tile) -> bool {
@@ -232,15 +239,45 @@ mod tests {
         let tile_to_place = Tile::new(5,11).unwrap();
         let action = Action::PlaceTile { player: PlayerId::One, tile: tile_to_place };
         match play_turn(&game, &action) {
-            TurnResult::Success(game) => {
+            TurnResult::Success(_) => {
                 panic!("Placing a tile succeeded when player did not have tile")
             }
             _ => {}
         }
     }
 
+    #[test]
+    fn placing_a_tile_removes_tile_from_player() {
+        let start_tiles = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
+        let player_tiles = [[ (0,0), (0,1), (0,2), (0,3), (0,4), (0,5) ],
+                            [ (1,0), (1,1), (1,2), (1,3), (1,4), (1,5) ],
+                            [ (2,2), (2,1), (2,2), (2,3), (2,4), (2,5) ],
+                            [ (3,3), (3,1), (3,2), (3,3), (3,4), (3,5) ]];
+        let game = new_game_with_tiles(start_tiles, player_tiles);
+        let tile_to_place = Tile::new(0,2).unwrap();
+        let action = Action::PlaceTile { player: PlayerId::One, tile: tile_to_place.clone() };
+        match play_turn(&game, &action) {
+            TurnResult::Success(game_after) => {
+                let player = game_after.players.iter().find(|p| p.id == PlayerId::One).unwrap();
+                let has_tile = player.tiles.iter().any(|t| *t == tile_to_place);
+                assert!(!has_tile, "Placed tile was still on player")
+            }
+            _ => {
+                panic!("Placing a valid tile failed")
+            }
+        }
+    }
+
     fn new_game_with_tiles(start_tiles: BoardTiles, player_tiles: PlayerTiles) -> Game {
-        let (starting_tiles, remaining) = board_tiles_to_tiles(&start_tiles);
+        let (starting_tiles, _) = board_tiles_to_tiles(&start_tiles);
         let players = player_tiles
             .iter()
             .enumerate()
