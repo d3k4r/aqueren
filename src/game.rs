@@ -23,7 +23,7 @@ pub fn new_game() -> Game {
     Game {
         board: Board { slots: slots },
         players: players, 
-        turn: 1, 
+        turn: PlayerId::One, 
         merge_decision: None
     }
 }
@@ -43,7 +43,7 @@ fn new_players(tiles: Vec<Tile>) -> Vec<Player>{
     let (players, _) = (0..PLAYERS)
         .fold( (init_players, tiles), | (mut v, remaining), i | {
             let (player_tiles, new_remaining) = choose_tiles(remaining, 6);
-            let player = new_player(i, player_tiles);
+            let player = new_player(PlayerId::new(i+1).unwrap(), player_tiles);
             v.push(player);
             (v, new_remaining)
         });
@@ -96,12 +96,12 @@ pub fn play_turn(game: &Game, action: Action) -> Game {
     }
 }
 
-fn place_tile(game: &Game, player: u8, tile: &Tile) -> Game {
+fn place_tile(game: &Game, player: PlayerId, tile: &Tile) -> Game {
     Game {
         board: place_tile_on_board(&game.board, &tile),
         players: game.players.clone(),
-        turn: game.turn,
-        merge_decision: game.merge_decision
+        turn: game.turn.clone(),
+        merge_decision: game.merge_decision.clone()
     }
 }
 
@@ -190,7 +190,7 @@ mod tests {
                             [ (3,3), (3,1), (3,2), (3,3), (3,4), (3,5) ]];
         let game = new_game_with_tiles(start_tiles, player_tiles);
         let tile_to_place = Tile::new(5,11).unwrap();
-        let action = Action::PlaceTile { player: 1, tile: tile_to_place };
+        let action = Action::PlaceTile { player: PlayerId::One, tile: tile_to_place };
         let game_after = play_turn(&game, action);
         assert_boards_equal(&tiles_to_board(&end_tiles), &game_after.board);
     }
@@ -205,14 +205,14 @@ mod tests {
                     .iter()
                     .map(|&(r,c)| Tile::new(r as u8, c as u8).unwrap() )
                     .collect();
-                new_player(i as u8, _tiles)
+                new_player(PlayerId::new((i+1) as u8).unwrap(), _tiles)
             })
             .collect();
         let slots = initial_slots(starting_tiles);
         Game {
             board: Board { slots: slots },
             players: players, 
-            turn: 1, 
+            turn: PlayerId::One, 
             merge_decision: None
         }
     }

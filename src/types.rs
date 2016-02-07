@@ -19,7 +19,20 @@ pub struct Player {
     pub tiles: Vec<Tile>
 }
 
-pub type PlayerId = u8;
+#[derive(RustcDecodable, RustcEncodable, Debug, Clone)]
+pub enum PlayerId { One, Two, Three, Four }
+
+impl PlayerId {
+    pub fn new(id: u8) -> Option<PlayerId>{
+        match id {
+            1 => { Some(PlayerId::One) }
+            2 => { Some(PlayerId::Two) }
+            3 => { Some(PlayerId::Three) }
+            4 => { Some(PlayerId::Four) }
+            _ => { None }
+        }
+    }
+}
 
 #[derive(RustcDecodable, RustcEncodable, Clone)]
 pub struct PlayerShares {
