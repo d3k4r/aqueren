@@ -127,6 +127,18 @@ fn has_tile_on_slot(tiles: & Vec<Tile>, row: u8, col: u8) -> bool {
     tiles.iter().any(|t| t.row == row && t.col == col)
 }
 
+pub fn compute_state(last_state: &Game, actions: &Vec<Action>) -> Game {
+    let mut state = Game {
+        board: last_state.board.clone(),
+        players: last_state.players.clone(),
+        turn: last_state.turn,
+        merge_decision: last_state.merge_decision
+    };
+    for action in actions {
+    }
+    state
+}
+
 pub fn play_turn(game: &Game, action: Action) -> Game {
     match action {
         Action::PlaceTile { player: player, tile: tile } => {

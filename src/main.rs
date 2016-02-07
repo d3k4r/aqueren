@@ -28,7 +28,7 @@ struct GameHandler {
 impl Handler for GameHandler {
     fn handle(&self, mut req: Request, mut res: Response) {
         let actions = &self.actions;
-        let game = &self.starting_board;
+        let starting_board = &self.starting_board;
         let mut body: String  = "".to_string();
         req.read_to_string(&mut body);
 
@@ -41,7 +41,8 @@ impl Handler for GameHandler {
 
         match (req.method, path.as_ref()) {
             (Get, "/state") => {
-                let encoded = json::encode(&game).unwrap();
+                let state = game::compute_state(starting_board, actions);
+                let encoded = json::encode(&state).unwrap();
                 try_return!(res.send(encoded.as_bytes()));
             },
             (Post, "/turn") => {
