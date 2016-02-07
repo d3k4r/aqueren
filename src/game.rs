@@ -1,69 +1,17 @@
 extern crate rand;
 
-pub const ROWS: u8 = 9;
-pub const COLS: u8 = 12;
-pub const TILES: u8 = 108;
-pub const PLAYERS: u8 = 4;
-
-#[derive(RustcDecodable, RustcEncodable, Clone)]
-pub struct Game {
-    players: Vec<Player>,
-    board: Board,
-    turn: PlayerId,
-    merge_decision: Option<PlayerId>
-}
-
-#[derive(RustcDecodable, RustcEncodable, Clone)]
-pub struct Player {
-    id: PlayerId,
-    money: i32,
-    shares: PlayerShares,
-    tiles: Vec<Tile>
-}
-
-pub type PlayerId = u8;
-
-#[derive(RustcDecodable, RustcEncodable, Clone)]
-pub struct PlayerShares {
-    luxor: u8,
-    tower: u8,
-    american: u8,
-    festival: u8,
-    worldwide: u8,
-    continental: u8,
-    imperial: u8
-}
-
-#[derive(RustcDecodable, RustcEncodable, Clone, Debug)]
-pub struct Tile { row: u8, col: u8 }
-
-#[derive(RustcDecodable, RustcEncodable, Clone)]
-pub struct Board {
-    slots: Vec<Slot>
-}
-
-#[derive(RustcDecodable, RustcEncodable, Clone, PartialEq)]
-pub struct Slot {
-    row: u8,
-    col: u8,
-    has_tile: bool,
-    hotel: Option<Hotel>
-}
-
-#[derive(RustcDecodable, RustcEncodable, Clone, PartialEq)]
-pub enum Hotel { Luxor, Tower, American, Festival, Worldwide, Continental, Imperial }
-
-#[derive(Debug)]
-pub enum Action {
-    PlaceTile { player: PlayerId, tile: Tile },
-    HandleMergeStocks { hold: u8, sell: u8, trade: u8 },
-    BuyStocks,
-    DrawTile,
-    EndGame
-}
+use types::*;
 
 pub fn new_game() -> Game {
-    let all_tiles = (0..TILES).map(|i| Tile { row: i / COLS, col: i % ROWS }).collect();
+    let all_tiles = (0..TILES).map(|i| {
+        let row = i / COLS;
+        let col = i % ROWS;
+        if let Some(tile) = Tile::new(row, col) {
+            tile
+        } else {
+            panic!("Attempted to create invalid tile ({},{})", row, col)
+        }
+        }).collect();
     let (starting_tiles, remaining_tiles) = choose_tiles(all_tiles, PLAYERS);
     let players = new_players(remaining_tiles);
     let slots = initial_slots(starting_tiles);
@@ -119,7 +67,7 @@ pub fn initial_slots(starting_tiles: Vec<Tile>) -> Vec<Slot> {
 }
 
 fn has_tile_on_slot(tiles: & Vec<Tile>, row: u8, col: u8) -> bool {
-    tiles.iter().any(|t| t.row == row && t.col == col)
+    tiles.iter().any(|t| t.row() == row && t.col() == col)
 }
 
 pub fn play_turn(game: &Game, action: Action) -> Game {
@@ -144,7 +92,7 @@ fn place_tile_on_board(board: &Board, tile: &Tile) -> Board {
     let slots = board.slots
         .iter()
         .map(|s| {
-            if s.row == tile.row && s.col == tile.col {
+            if s.row == tile.row() && s.col == tile.col() {
                 Slot { row: s.row, col: s.col, has_tile: true, hotel: s.hotel.clone() }
             } else {
                 s.clone()
@@ -157,6 +105,7 @@ fn place_tile_on_board(board: &Board, tile: &Tile) -> Board {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use types::*;
 
     type BoardTiles = [[i32; COLS as usize]; ROWS as usize];
     type PlayerTiles = [[(i32,i32); 6]; PLAYERS as usize];
@@ -223,7 +172,7 @@ mod tests {
                             [ (2,2), (2,1), (2,2), (2,3), (2,4), (2,5) ],
                             [ (3,3), (3,1), (3,2), (3,3), (3,4), (3,5) ]];
         let game = new_game_with_tiles(start_tiles, player_tiles);
-        let tile_to_place = Tile { row: 5, col: 11 };
+        let tile_to_place = Tile::new(5,11).unwrap();
         let action = Action::PlaceTile { player: 1, tile: tile_to_place };
         let game_after = play_turn(&game, action);
         assert_boards_equal(&tiles_to_board(&end_tiles), &game_after.board);
@@ -237,7 +186,7 @@ mod tests {
             .map(|(i, tiles)| {
                 let _tiles = tiles
                     .iter()
-                    .map(|&(r,c)| Tile { row: r as u8, col: c as u8 } )
+                    .map(|&(r,c)| Tile::new(r as u8, c as u8).unwrap() )
                     .collect();
                 new_player(i as u8, _tiles)
             })
@@ -256,7 +205,7 @@ mod tests {
         let mut others = Vec::new();
         for row in 0..tiles.len() {
             for col in 0..tiles[0].len() {
-                let tile = Tile { row: row as u8, col: col as u8 };
+                let tile = Tile::new(row as u8, col as u8).unwrap();
                 if tiles[row][col] == 1 {
                     chosen.push(tile)
                 } else {

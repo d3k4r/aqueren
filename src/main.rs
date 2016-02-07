@@ -1,8 +1,8 @@
 extern crate hyper;
 extern crate rustc_serialize;
 
-
 mod game;
+mod types;
 
 use std::io::Read;
 use rustc_serialize::json;
