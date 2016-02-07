@@ -2,14 +2,16 @@ extern crate hyper;
 extern crate rustc_serialize;
 
 mod game;
+mod types;
+
+use types::{Action, Game};
 
 use std::io::Read;
 use rustc_serialize::json;
 use hyper::{Get, Post};
 use hyper::header::ContentLength;
-use hyper::server::{Handler, Server, Request, Response};
+use hyper::server::{Handler, Request, Response, Server};
 use hyper::uri::RequestUri::AbsolutePath;
-use game::{Action, Game};
 
 macro_rules! try_return(
     ($e:expr) => {{
@@ -22,13 +24,13 @@ macro_rules! try_return(
 
 struct GameHandler {
     actions: Vec<Action>,
-    starting_board: Game
+    initial_game: Game
 }
 
 impl Handler for GameHandler {
     fn handle(&self, mut req: Request, mut res: Response) {
         let actions = &self.actions;
-        let starting_board = &self.starting_board;
+        let initial_game = &self.initial_game;
         let mut body: String  = "".to_string();
         req.read_to_string(&mut body);
 
@@ -41,7 +43,7 @@ impl Handler for GameHandler {
 
         match (req.method, path.as_ref()) {
             (Get, "/state") => {
-                let state = game::compute_state(starting_board, actions);
+                let state = game::compute_state(initial_game, actions);
                 let encoded = json::encode(&state).unwrap();
                 try_return!(res.send(encoded.as_bytes()));
             },
@@ -58,10 +60,9 @@ impl Handler for GameHandler {
 
 fn main() {
     let actions = game::new_actions();
-    let starting_board = game::new_game();
+    let initial_game = game::new_game();
     let server = Server::http("localhost:3001").unwrap();
-
     println!("Starting server on localhost:3001");
 
-    let _ = server.handle(GameHandler { actions: actions, starting_board: starting_board} );
+    let _ = server.handle(GameHandler { actions: actions, initial_game: initial_game} );
 }
