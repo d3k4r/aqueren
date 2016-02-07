@@ -89,7 +89,7 @@ pub fn compute_state(last_state: &Game, actions: &Vec<Action>) -> Game {
 
 pub fn play_turn(game: &Game, action: Action) -> Game {
     match action {
-        Action::PlaceTile { player: player, tile: tile } => {
+        Action::PlaceTile { player, tile } => {
             place_tile(game, player, &tile)
         }
         _ => panic!(format!("I don't know how to play a turn with action {:?}", action))

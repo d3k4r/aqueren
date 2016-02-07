@@ -50,7 +50,7 @@ pub struct Tile { row: u8, col: u8 }
 
 impl Tile {
     pub fn new(row: u8, col: u8) -> Option<Tile> {
-        if row < 0 || row >= ROWS || col < 0 || col >= COLS {
+        if row >= ROWS || col >= COLS {
             None
         } else {
             Some(Tile {row: row, col: col})
