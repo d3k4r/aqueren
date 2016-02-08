@@ -27,12 +27,18 @@ struct GameHandler {
     initial_game: Game
 }
 
+#[derive(RustcDecodable, Debug)]
+struct ActionTile {
+    player: u8,
+    tile: types::Tile
+}
+
 impl Handler for GameHandler {
     fn handle(&self, mut req: Request, mut res: Response) {
         let actions = &self.actions;
         let initial_game = &self.initial_game;
         let mut body: String  = "".to_string();
-        req.read_to_string(&mut body);
+        let _ = req.read_to_string(&mut body);
 
         let path = match req.uri {
             AbsolutePath(ref path) => {
@@ -54,8 +60,28 @@ impl Handler for GameHandler {
                     }
                 }
             },
-            (Post, "/turn") => {
-                try_return!(res.send(body.as_bytes()));
+            (Post, "/action") => {
+                let action_tile: ActionTile = json::decode(&body).unwrap();
+                let player = types::PlayerId::new(action_tile.player).unwrap();
+                let tile = types::Tile::new(action_tile.tile.row,action_tile.tile.col).unwrap();
+                let action = Action::PlaceTile { player: player, tile: tile};
+                let result = game::compute_state(initial_game, actions);
+                match result {
+                    TurnResult::Success(game) => {
+                        match game::play_turn(&game, &action) {
+                            TurnResult::Success(game_after) => {
+                                let encoded = json::encode(&game_after).unwrap();
+                                try_return!(res.send(encoded.as_bytes()));
+                            }
+                            _ => {
+                                try_return!(res.send(b"{\"error\": \"Invalid tile\"}"));
+                            }
+                        }
+                    }
+                    TurnResult::Error(error) => {
+                        try_return!(res.send(error.as_bytes()));
+                    }
+                }
             },
             _ => {
                 *res.status_mut() = hyper::BadRequest;

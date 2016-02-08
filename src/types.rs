@@ -46,7 +46,7 @@ pub struct PlayerShares {
 }
 
 #[derive(RustcDecodable, RustcEncodable, Clone, Debug, PartialEq)]
-pub struct Tile { row: u8, col: u8 }
+pub struct Tile { pub row: u8, pub col: u8 }
 
 impl Tile {
     pub fn new(row: u8, col: u8) -> Option<Tile> {
