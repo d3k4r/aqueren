@@ -245,6 +245,32 @@ mod tests {
             _ => {}
         }
     }
+    
+    #[test]
+    fn placing_a_tile_fails_if_player_does_not_have_turn() {
+        let start_tiles = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
+        let player_tiles = [[ (0,0), (0,1), (0,2), (0,3), (0,4), (0,5) ],
+                            [ (1,0), (1,1), (1,2), (1,3), (1,4), (1,5) ],
+                            [ (2,2), (2,1), (2,2), (2,3), (2,4), (2,5) ],
+                            [ (3,3), (3,1), (3,2), (3,3), (3,4), (3,5) ]];
+        let game = new_game_with_tiles(start_tiles, player_tiles);
+        let tile_to_place = Tile::new(1,4).unwrap();
+        let action = Action::PlaceTile { player: PlayerId::Two, tile: tile_to_place };
+        match play_turn(&game, &action) {
+            TurnResult::Success(_) => {
+                panic!("Placing a tile succeeded when player did not have turn")
+            }
+            _ => {}
+        }
+    }
 
     #[test]
     fn placing_a_tile_removes_tile_from_player() {
