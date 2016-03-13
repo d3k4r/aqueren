@@ -94,6 +94,10 @@ pub fn play_turn(game: &Game, action: &Action) -> TurnResult {
 }
 
 fn place_tile(game: &Game, player_id: PlayerId, tile: &Tile) -> TurnResult {
+    if !game_player_has_turn(game, player_id.clone()) {
+        let error_msg = format!("Error placing tile: player {:?} does not have turn", player_id);
+        return TurnResult::Error(error_msg)
+    }
     if !game_player_has_tile(game, player_id.clone(), tile) {
         let error_msg = format!("Error placing tile: player {:?} does not have tile {:?}", player_id, *tile);
         return TurnResult::Error(error_msg)
@@ -112,6 +116,10 @@ fn remove_tile_from_player(mut players: Vec<Player>, player_id: PlayerId, tile: 
     let tile_index = players[player_index].tiles.iter().position(|t| *t == *tile).unwrap();
     players[player_index].tiles.remove(tile_index);
     players
+}
+
+fn game_player_has_turn(game: &Game, player: PlayerId) -> bool {
+    return game.turn == player
 }
 
 fn game_player_has_tile(game: &Game, player: PlayerId, tile: &Tile) -> bool {
