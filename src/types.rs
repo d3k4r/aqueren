@@ -34,7 +34,7 @@ impl PlayerId {
     }
 }
 
-#[derive(RustcDecodable, RustcEncodable, Clone)]
+#[derive(RustcDecodable, RustcEncodable, Clone, Debug, PartialEq)]
 pub struct PlayerShares {
     pub luxor: u8,
     pub tower: u8,
@@ -77,14 +77,14 @@ pub struct Slot {
     pub hotel: Option<Hotel>
 }
 
-#[derive(RustcDecodable, RustcEncodable, Clone, PartialEq)]
+#[derive(RustcDecodable, RustcEncodable, Clone, Debug, PartialEq)]
 pub enum Hotel { Luxor, Tower, American, Festival, Worldwide, Continental, Imperial }
 
 #[derive(Debug)]
 pub enum Action {
     PlaceTile { player: PlayerId, tile: Tile },
     HandleMergeStocks { hold: u8, sell: u8, trade: u8 },
-    BuyStocks,
+    BuyStocks { player: PlayerId, hotel1: Option<Hotel>, hotel2: Option<Hotel>, hotel3: Option<Hotel> },
     DrawTile,
     EndGame
 }

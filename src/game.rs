@@ -89,6 +89,9 @@ pub fn play_turn(game: &Game, action: &Action) -> TurnResult {
         Action::PlaceTile { ref player, ref tile } => {
             place_tile(game, player.clone(), tile)
         }
+        Action::BuyStocks { ref player, ref hotel1, ref hotel2, ref hotel3 } => {
+            buy_stocks(game, player.clone(), hotel1.clone(), hotel2.clone(), hotel3.clone())
+        }
         _ => panic!(format!("I don't know how to play a turn with action {:?}", action))
     }
 }
@@ -144,6 +147,115 @@ fn place_tile_on_board(board: &Board, tile: &Tile) -> Board {
         })
         .collect();
     Board { slots: slots }
+}
+
+fn buy_stocks(game: &Game, player: PlayerId, hotel1: Option<Hotel>, hotel2: Option<Hotel>, hotel3: Option<Hotel>) -> TurnResult {
+    let new_players: Vec<Player> = game.players
+        .iter()
+        .map(|p| {
+            if p.id == player {
+                player_buy_stocks(&game, &p, hotel1.clone(), hotel2.clone(), hotel3.clone())
+            } else {
+                p.clone()
+            }
+        })
+        .collect();
+    TurnResult::Success(Game {
+        board: game.board.clone(),
+        players: new_players,
+        turn: game.turn.clone(),
+        merge_decision: game.merge_decision.clone()
+    })
+}
+
+fn player_buy_stocks(game: &Game, player: &Player, hotel1: Option<Hotel>, hotel2: Option<Hotel>, hotel3: Option<Hotel>) -> Player {
+  let new_shares = vec![hotel1.clone(), hotel2.clone(), hotel3.clone()]
+        .iter()
+        .fold(player.shares.clone(), | shares, hotel: &Option<Hotel> | {
+            match *hotel {
+                Some(ref h) => { add_share(shares, h.clone()) }
+                None => { shares }
+            }
+        });
+  let total_cost = share_price(game, hotel1) + share_price(game, hotel2) + share_price(game, hotel3);
+  let money_after = player.money - total_cost;
+  Player { 
+      id: player.id.clone(), 
+      money: money_after, 
+      shares: new_shares, 
+      tiles: player.tiles.clone()
+  }
+}
+
+fn share_price(game: &Game, hotel: Option<Hotel>) -> i32 {
+  hotel.map(|h| stock_price(h.clone(), hotel_chain_size(game, h.clone()))).unwrap_or(0)
+}
+
+fn add_share(shares: PlayerShares, hotel: Hotel) -> PlayerShares {
+    let mut new_shares = PlayerShares {
+        luxor: shares.luxor,
+        tower: shares.tower,
+        american: shares.american,
+        festival: shares.festival,
+        worldwide: shares.worldwide,
+        continental: shares.continental,
+        imperial: shares.imperial
+    };
+    match hotel {
+        Hotel::Tower =>       { new_shares.tower += 1 }
+        Hotel::Luxor =>       { new_shares.luxor += 1 }
+        Hotel::American =>    { new_shares.american += 1 }
+        Hotel::Worldwide =>   { new_shares.worldwide += 1 }
+        Hotel::Festival =>    { new_shares.festival += 1 }
+        Hotel::Imperial =>    { new_shares.imperial += 1 }
+        Hotel::Continental => { new_shares.continental += 1 }
+    };
+    new_shares
+}
+
+fn hotel_chain_size(game: &Game, hotel: Hotel) -> u8 {
+  2
+}
+
+fn stock_price(hotel: Hotel, num_tiles: u8) -> i32 {
+    base_price(hotel) + 100 * price_level(num_tiles) as i32
+}
+
+fn base_price(hotel: Hotel) -> i32 {
+    let cheap = 200;
+    let medium = 300;
+    let spendy = 400;
+    match hotel {
+        Hotel::Tower =>       { cheap }
+        Hotel::Luxor =>       { cheap }
+        Hotel::American =>    { medium }
+        Hotel::Worldwide =>   { medium }
+        Hotel::Festival =>    { medium }
+        Hotel::Imperial =>    { spendy }
+        Hotel::Continental => { spendy }
+    }
+}
+
+fn price_level(num_tiles: u8) -> u8 {
+  if num_tiles == 2 {
+      0
+  } else if num_tiles == 3 {
+      1
+  } else if num_tiles == 4 {
+      2
+  } else if num_tiles == 5 {
+      3
+  } else if num_tiles >= 6 && num_tiles <= 10 {
+      4
+  } else if num_tiles >= 11 && num_tiles <= 20 {
+      5
+  } else if num_tiles >= 21 && num_tiles <= 30 {
+      6
+  } else if num_tiles >= 31 && num_tiles <= 40 {
+      7
+  } else { // >= 41
+      8
+  }
 }
 
 #[cfg(test)]
@@ -306,6 +418,79 @@ mod tests {
             }
             _ => {
                 panic!("Placing a valid tile failed")
+            }
+        }
+    }
+
+    #[test]
+    fn buying_stocks_reduces_player_money() {
+        let start_tiles = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
+        let player_tiles = [[ (0,0), (0,1), (0,2), (0,3), (0,4), (0,5) ],
+                            [ (1,0), (1,1), (1,2), (1,3), (1,4), (1,5) ],
+                            [ (2,2), (2,1), (2,2), (2,3), (2,4), (2,5) ],
+                            [ (3,3), (3,1), (3,2), (3,3), (3,4), (3,5) ]];
+        let game = new_game_with_tiles(start_tiles, player_tiles);
+        let action = Action::BuyStocks { player: PlayerId::One, hotel1: Some(Hotel::Luxor), hotel2: None, hotel3: None };
+        match play_turn(&game, &action) {
+            TurnResult::Success(game_after) => {
+                let player = game_after.players.iter().find(|p| p.id == PlayerId::One).unwrap();
+                let expected_money = 5800;
+                let error_msg = format!("After buying stocks, expected player to have {:?} dollars but player had {:?} dollars", expected_money, player.money);
+                assert!(player.money == expected_money, error_msg)
+            }
+            _ => {
+                panic!("Failed buying stocks")
+            }
+        }
+    }
+
+    #[test]
+    fn buying_stocks_gives_player_bought_stocks() {
+        let start_tiles = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
+        let player_tiles = [[ (0,0), (0,1), (0,2), (0,3), (0,4), (0,5) ],
+                            [ (1,0), (1,1), (1,2), (1,3), (1,4), (1,5) ],
+                            [ (2,2), (2,1), (2,2), (2,3), (2,4), (2,5) ],
+                            [ (3,3), (3,1), (3,2), (3,3), (3,4), (3,5) ]];
+        let game = new_game_with_tiles(start_tiles, player_tiles);
+        let action = Action::BuyStocks {
+            player: PlayerId::One, 
+            hotel1: Some(Hotel::Luxor), 
+            hotel2: Some(Hotel::Luxor), 
+            hotel3: Some(Hotel::Imperial)
+        };
+        match play_turn(&game, &action) {
+            TurnResult::Success(game_after) => {
+                let player = game_after.players.iter().find(|p| p.id == PlayerId::One).unwrap();
+                let expected_shares = PlayerShares {
+                    luxor: 2,
+                    tower: 0,
+                    american: 0,
+                    festival: 0,
+                    worldwide: 0,
+                    continental: 0,
+                    imperial: 1
+                };
+                let error_msg = format!("After buying stocks, expected player to have shares\n{:?} but player had shares\n{:?}", expected_shares, player.shares);
+                assert!(player.shares == expected_shares, error_msg)
+            }
+            _ => {
+                panic!("Failed buying stocks")
             }
         }
     }
