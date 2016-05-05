@@ -8,7 +8,7 @@ pub struct Game {
     pub players: Vec<Player>,
     pub board: Board,
     pub turn: PlayerId,
-    pub merge_decision: Option<PlayerId>
+    pub turn_state: TurnState
 }
 
 #[derive(RustcDecodable, RustcEncodable, Clone)]
@@ -45,7 +45,7 @@ pub struct PlayerShares {
     pub imperial: u8
 }
 
-#[derive(RustcDecodable, RustcEncodable, Clone, Debug, PartialEq)]
+#[derive(RustcDecodable, RustcEncodable, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Tile { pub row: u8, pub col: u8 }
 
 impl Tile {
@@ -79,6 +79,13 @@ pub struct Slot {
 
 #[derive(RustcDecodable, RustcEncodable, Clone, Debug, PartialEq)]
 pub enum Hotel { Luxor, Tower, American, Festival, Worldwide, Continental, Imperial }
+
+#[derive(RustcDecodable, RustcEncodable, Clone, PartialEq)]
+pub enum TurnState {
+    Placing,
+    BuyingOrDrawing,
+    Drawing
+}
 
 #[derive(Debug)]
 pub enum Action {

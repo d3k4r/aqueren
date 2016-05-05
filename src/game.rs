@@ -1,14 +1,16 @@
 extern crate rand;
 
 use types::*;
+use std::collections::HashSet;
+use std::iter::FromIterator;
 
 pub fn new_actions() -> Vec<Action> {
     let actions: Vec<Action> = Vec::new();
     actions
 }
 
-pub fn new_game() -> Game {
-    let all_tiles = (0..TILES).map(|i| {
+fn all_tiles() -> Vec<Tile> {
+    (0..TILES).map(|i| {
         let row = i / COLS;
         let col = i % ROWS;
         if let Some(tile) = Tile::new(row, col) {
@@ -16,15 +18,18 @@ pub fn new_game() -> Game {
         } else {
             panic!("Attempted to create invalid tile ({},{})", row, col)
         }
-        }).collect();
-    let (starting_tiles, remaining_tiles) = choose_tiles(all_tiles, PLAYERS);
+        }).collect()
+}
+
+pub fn new_game() -> Game {
+    let (starting_tiles, remaining_tiles) = choose_tiles(all_tiles(), PLAYERS);
     let players = new_players(remaining_tiles);
     let slots = initial_slots(starting_tiles);
     Game {
         board: Board { slots: slots },
         players: players, 
         turn: PlayerId::One, 
-        merge_decision: None
+        turn_state: TurnState::Placing
     }
 }
 
@@ -86,6 +91,9 @@ pub fn compute_state(last_state: &Game, actions: &Vec<Action>) -> TurnResult {
 
 pub fn play_turn(game: &Game, action: &Action) -> TurnResult {
     match *action {
+        Action::DrawTile => {
+            draw_tile(game)
+        }
         Action::PlaceTile { ref player, ref tile } => {
             place_tile(game, player.clone(), tile)
         }
@@ -93,6 +101,46 @@ pub fn play_turn(game: &Game, action: &Action) -> TurnResult {
             buy_stocks(game, player.clone(), hotel1.clone(), hotel2.clone(), hotel3.clone())
         }
         _ => panic!(format!("I don't know how to play a turn with action {:?}", action))
+    }
+}
+
+fn draw_tile(game: &Game) -> TurnResult {
+    if game.turn_state != TurnState::Drawing && game.turn_state != TurnState::BuyingOrDrawing {
+        let error_msg = format!("Error drawing tile: player {:?} is not allowed to draw a tile", game.turn);
+        return TurnResult::Error(error_msg)
+    }
+    let remaining = get_remaining_tiles(&game);
+    let (mut tiles, new_remaining) = choose_tiles(remaining, 1);
+    let drawn_tile = tiles.pop().unwrap();
+    let new_players = add_tile_to_player(game.players.clone(), game.turn.clone(), &drawn_tile);
+    TurnResult::Success(Game {
+        board: game.board.clone(),
+        players: new_players,
+        turn: next_turn(game.turn.clone()),
+        turn_state: TurnState::Placing
+    })
+}
+
+fn get_remaining_tiles(game: &Game) -> Vec<Tile> {
+    let mut remaining_tiles: HashSet<Tile> = all_tiles().iter().cloned().collect();
+    for player in game.players.iter() {
+        for tile in player.tiles.iter() {
+            remaining_tiles.remove(&tile);
+        }
+    }
+    let board_tiles = game.board.slots.iter().filter(|s| s.has_tile).map(|s| Tile{ row: s.row, col: s.col });
+    for tile in board_tiles {
+        remaining_tiles.remove(&tile);
+    }
+    remaining_tiles.iter().cloned().collect()
+}
+
+fn next_turn(player_id: PlayerId) -> PlayerId {
+    match player_id {
+        PlayerId::One => { PlayerId::Two }
+        PlayerId::Two => { PlayerId::Three }
+        PlayerId::Three => { PlayerId::Four }
+        PlayerId::Four => { PlayerId::One }
     }
 }
 
@@ -110,8 +158,14 @@ fn place_tile(game: &Game, player_id: PlayerId, tile: &Tile) -> TurnResult {
         board: place_tile_on_board(&game.board, &tile),
         players: new_players,
         turn: game.turn.clone(),
-        merge_decision: game.merge_decision.clone()
+        turn_state: TurnState::BuyingOrDrawing
     })
+}
+
+fn add_tile_to_player(mut players: Vec<Player>, player_id: PlayerId, tile: &Tile) -> Vec<Player> {
+    let player_index = players.iter().position(|p| p.id == player_id).unwrap();
+    players[player_index].tiles.push(tile.clone());
+    players
 }
 
 fn remove_tile_from_player(mut players: Vec<Player>, player_id: PlayerId, tile: &Tile) -> Vec<Player> {
@@ -164,7 +218,7 @@ fn buy_stocks(game: &Game, player: PlayerId, hotel1: Option<Hotel>, hotel2: Opti
         board: game.board.clone(),
         players: new_players,
         turn: game.turn.clone(),
-        merge_decision: game.merge_decision.clone()
+        turn_state: TurnState::Drawing
     })
 }
 
