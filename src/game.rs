@@ -27,8 +27,8 @@ pub fn new_game() -> Game {
     let slots = initial_slots(starting_tiles);
     Game {
         board: Board { slots: slots },
-        players: players, 
-        turn: PlayerId::One, 
+        players: players,
+        turn: PlayerId::One,
         turn_state: TurnState::Placing
     }
 }
@@ -66,12 +66,12 @@ fn empty_shares() -> PlayerShares {
 pub fn initial_slots(starting_tiles: Vec<Tile>) -> Vec<Slot> {
     (0..ROWS).flat_map(|row| -> Vec<Slot> {
         (0..COLS).map(|col| {
-            Slot { 
-                row: row, 
-                col: col, 
-                hotel: None, 
+            Slot {
+                row: row,
+                col: col,
+                hotel: None,
                 has_tile: has_tile_on_slot(&starting_tiles, row, col)
-            } 
+            }
         }).collect()
     }).collect()
 }
@@ -158,8 +158,48 @@ fn place_tile(game: &Game, player_id: PlayerId, tile: &Tile) -> TurnResult {
         board: place_tile_on_board(&game.board, &tile),
         players: new_players,
         turn: game.turn.clone(),
-        turn_state: TurnState::BuyingOrDrawing
+        turn_state: state_after_place_tile(&game.board, &tile)
     })
+}
+
+fn state_after_place_tile(board: &Board, tile: &Tile) -> TurnState {
+  let mut adjacent_tiles = 0;
+  let mut adjacent_hotels: Vec<Hotel> = Vec::new();
+  for slot in board.slots.clone() {
+    if is_adjacent(&slot, tile) {
+      println!("Found adjacent tile: {}, {}", slot.row, slot.col);
+      if slot.has_tile {
+        adjacent_tiles += 1;
+      }
+      if slot.hotel != None {
+        adjacent_hotels.push(slot.hotel.unwrap());
+      }
+    }
+  }
+  println!("Adjacent tiles: {}", adjacent_tiles);
+  println!("Adjacent hotels: {}", adjacent_hotels.len());
+  if adjacent_tiles == 0 || adjacent_hotels.len() == 1 {
+    println!("Buying or drawing.");
+    TurnState::BuyingOrDrawing
+  } else if adjacent_hotels.len() == 0 {
+    println!("Creating chain");
+    TurnState::CreatingChain
+  } else {
+    println!("Merging");
+    TurnState::Merging
+  }
+}
+
+fn is_adjacent(slot: &Slot, tile: &Tile) -> bool {
+  let mut adjacent = false;
+  if tile.row() > 0 {
+    adjacent = slot.col == tile.col() && slot.row == tile.row() - 1;
+  }
+  if tile.col() > 0 {
+    adjacent = adjacent || (slot.row == tile.row() && slot.col == tile.col() - 1)
+  }
+  adjacent || (slot.col == tile.col() && slot.row == tile.row() + 1) ||
+      (slot.row == tile.row() && slot.col == tile.col() + 1)
 }
 
 fn add_tile_to_player(mut players: Vec<Player>, player_id: PlayerId, tile: &Tile) -> Vec<Player> {
@@ -233,10 +273,10 @@ fn player_buy_stocks(game: &Game, player: &Player, hotel1: Option<Hotel>, hotel2
         });
   let total_cost = share_price(game, hotel1) + share_price(game, hotel2) + share_price(game, hotel3);
   let money_after = player.money - total_cost;
-  Player { 
-      id: player.id.clone(), 
-      money: money_after, 
-      shares: new_shares, 
+  Player {
+      id: player.id.clone(),
+      money: money_after,
+      shares: new_shares,
       tiles: player.tiles.clone()
   }
 }
