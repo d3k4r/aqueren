@@ -84,7 +84,9 @@ pub enum Hotel { Luxor, Tower, American, Festival, Worldwide, Continental, Imper
 pub enum TurnState {
     Placing,
     BuyingOrDrawing,
-    Drawing
+    Drawing,
+    CreatingChain,
+    Merging
 }
 
 #[derive(Debug)]

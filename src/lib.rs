@@ -212,9 +212,9 @@ fn buying_stocks_gives_player_bought_stocks() {
     [ (3,3), (3,1), (3,2), (3,3), (3,4), (3,5) ]];
     let game = new_game_with_tiles(start_tiles, player_tiles);
     let action = Action::BuyStocks {
-        player: PlayerId::One, 
-        hotel1: Some(Hotel::Luxor), 
-        hotel2: Some(Hotel::Luxor), 
+        player: PlayerId::One,
+        hotel1: Some(Hotel::Luxor),
+        hotel2: Some(Hotel::Luxor),
         hotel3: Some(Hotel::Imperial)
     };
     match play_turn(&game, &action) {
@@ -246,6 +246,64 @@ fn player_can_draw_tile() {
 fn drawing_tile_ends_players_turn() {
 }
 
+#[test]
+fn placing_an_adjacent_tile_creates_chain() {
+    let start_tiles = [[0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
+    let player_tiles = [[ (0,0), (0,1), (0,2), (0,3), (0,4), (0,5) ],
+    [ (1,0), (1,1), (1,2), (1,3), (1,4), (1,5) ],
+    [ (2,2), (2,1), (2,2), (2,3), (2,4), (2,5) ],
+    [ (3,3), (3,1), (3,2), (3,3), (3,4), (3,5) ]];
+    let game = new_game_with_tiles(start_tiles, player_tiles);
+    let tile_to_place = Tile::new(0,5).unwrap();
+    let action = Action::PlaceTile { player: PlayerId::One, tile: tile_to_place.clone() };
+    match play_turn(&game, &action) {
+        TurnResult::Success(game_after) => {
+            let game_state = game_after.turn_state;
+            assert!(game_state == TurnState::CreatingChain, "Placing adjacent tile did not change state to creating chain")
+        }
+        _ => {
+            panic!("Placing a valid tile failed")
+        }
+    }
+}
+
+#[test]
+fn placing_a_tile_goes_to_buy_and_draw() {
+    let start_tiles = [[0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
+    let player_tiles = [[ (0,0), (0,1), (0,2), (0,3), (0,4), (0,5) ],
+    [ (1,0), (1,1), (1,2), (1,3), (1,4), (1,5) ],
+    [ (2,2), (2,1), (2,2), (2,3), (2,4), (2,5) ],
+    [ (3,3), (3,1), (3,2), (3,3), (3,4), (3,5) ]];
+    let game = new_game_with_tiles(start_tiles, player_tiles);
+    let tile_to_place = Tile::new(0,2).unwrap();
+    let action = Action::PlaceTile { player: PlayerId::One, tile: tile_to_place.clone() };
+    match play_turn(&game, &action) {
+        TurnResult::Success(game_after) => {
+            let game_state = game_after.turn_state;
+            assert!(game_state == TurnState::BuyingOrDrawing, "Placing a tile did not change state to buying or drawing")
+        }
+        _ => {
+            panic!("Placing a valid tile failed")
+        }
+    }
+}
+
 fn new_game_with_tiles(start_tiles: BoardTiles, player_tiles: PlayerTiles) -> Game {
     let (starting_tiles, _) = board_tiles_to_tiles(&start_tiles);
     let players = player_tiles
@@ -262,8 +320,8 @@ fn new_game_with_tiles(start_tiles: BoardTiles, player_tiles: PlayerTiles) -> Ga
     let slots = initial_slots(starting_tiles);
     Game {
         board: Board { slots: slots },
-        players: players, 
-        turn: PlayerId::One, 
+        players: players,
+        turn: PlayerId::One,
         turn_state: TurnState::Placing
     }
 }
