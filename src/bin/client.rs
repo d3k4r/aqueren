@@ -8,16 +8,27 @@ use hyper::client::response::Response;
 use rustc_serialize::json;
 use rustc_serialize::json::DecoderError;
 use std::env;
-use std::io::Read;
+use std::io;
 use std::io::Error;
 use std::io::ErrorKind;
+use std::io::Read;
+use std::io::Write;
+
+fn dump_state(server_url: &str) {
+    match get_state(server_url) {
+        Ok(game) => {
+            println!("{}", print_game(&game));
+        },
+        Err(e) => println!("{}", e)
+    }
+}
 
 fn get_state(server_url: &str) -> Result<Game, String> {
     let url = format!("{}/state", server_url);
     let client = Client::new();
     let result: Result<Response, hyper::error::Error> = client.get(&url).send();
     result
-        .map_err(|_| "Could not get state, do you have the correct server URL?".to_string())
+        .map_err(|_| "Could not get state, is the server running and do you have the correct server URL?".to_string())
         .and_then(parse_body)
         .and_then(parse_state)
 } 
@@ -96,12 +107,40 @@ fn print_tile(slot: &Tile) -> String {
     format!("{}{}", row_to_char(slot.row), slot.col + 1)
 }
 
+fn start_repl(server_url: &str) {
+    loop {
+        print!("$ ");
+        io::stdout().flush();
+        match read_input() {
+            Ok(s) => {
+                match s.as_ref() {
+                    "dump" => dump_state(server_url),
+                    "" => {},
+                    _ => println!("'{}' is not a command, try \"dump\"", s)
+                }
+            },
+            Err(e) => println!("Wat: {}", e)
+        }
+    }
+}
+
+fn read_input() -> Result<String, String> {
+    let mut input = String::new();
+    let read = io::stdin().read_line(&mut input);
+    match read {
+        Ok(_) => input.trim().parse::<String>().map_err(|e| e.to_string()),
+        Err(e) => Err(e.to_string())
+    }
+}
+
 fn main() {
     let server_url = env::args().nth(1).unwrap_or("http://localhost:3001".to_string());
     println!("Starting client, connecting to {}", server_url);
     match get_state(&server_url) {
-        Ok(game) => println!("\n{}", print_game(&game)),
-        Err(e) => println!("{}", e)
+        Ok(game) => {
+            println!("\n{}", print_game(&game));
+        },
+        Err(e) => panic!("{}", e)
     }
+    start_repl(&server_url);
 }
-
