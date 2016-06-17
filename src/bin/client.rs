@@ -7,16 +7,17 @@ use hyper::client::Client;
 use hyper::client::response::Response;
 use rustc_serialize::json;
 use rustc_serialize::json::DecoderError;
+use std::env;
 use std::io::Read;
 use std::io::Error;
 use std::io::ErrorKind;
 
-fn get_state() -> Result<Game, String> {
+fn get_state(server_url: &str) -> Result<Game, String> {
+    let url = format!("{}/state", server_url);
     let client = Client::new();
-    let url = "http://localhost:3001/state";
-    let result: Result<Response, hyper::error::Error> = client.get(url).send();
+    let result: Result<Response, hyper::error::Error> = client.get(&url).send();
     result
-        .map_err(|_| "Could not parse response".to_string())
+        .map_err(|_| "Could not get state, do you have the correct server URL?".to_string())
         .and_then(parse_body)
         .and_then(parse_state)
 } 
@@ -96,10 +97,11 @@ fn print_tile(slot: &Tile) -> String {
 }
 
 fn main() {
-    println!("Starting client");
-    match get_state() {
-        Ok(game) => println!("{}", print_game(&game)),
-        Err(_) => println!("Couldn't get start state")
+    let server_url = env::args().nth(1).unwrap_or("http://localhost:3001".to_string());
+    println!("Starting client, connecting to {}", server_url);
+    match get_state(&server_url) {
+        Ok(game) => println!("\n{}", print_game(&game)),
+        Err(e) => println!("{}", e)
     }
 }
 
