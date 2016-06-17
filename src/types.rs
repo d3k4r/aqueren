@@ -80,7 +80,7 @@ pub struct Slot {
 #[derive(RustcDecodable, RustcEncodable, Clone, Debug, PartialEq)]
 pub enum Hotel { Luxor, Tower, American, Festival, Worldwide, Continental, Imperial }
 
-#[derive(RustcDecodable, RustcEncodable, Clone, PartialEq)]
+#[derive(RustcDecodable, RustcEncodable, Clone, Debug, PartialEq)]
 pub enum TurnState {
     Placing,
     BuyingOrDrawing,

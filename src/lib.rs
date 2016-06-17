@@ -1,7 +1,7 @@
 extern crate rustc_serialize;
 
 mod game;
-mod types;
+pub mod types;
 
 use game::*;
 use types::*;
