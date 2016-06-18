@@ -3,17 +3,14 @@ extern crate hyper;
 extern crate rustc_serialize;
 
 use aqueren::server::{PlaceTileCmd};
-use aqueren::types::{Board, COLS, Game, Player, PlayerShares, Slot, Tile};
+use aqueren::types::{Board, COLS, Game, Player, PlayerShares, Tile};
 use hyper::client::Client;
 use hyper::client::response::Response;
 use rustc_serialize::json;
-use rustc_serialize::json::DecoderError;
+use rustc_serialize::Decodable;
 use std::collections::HashMap;
 use std::env;
-use std::iter::FromIterator;
 use std::io;
-use std::io::Error;
-use std::io::ErrorKind;
 use std::io::Read;
 use std::io::Write;
 
@@ -28,17 +25,16 @@ fn dump_state(server_url: &str) {
 
 fn place_tile(server_url: &str, tile: Tile) {
     let action = PlaceTileCmd { tile: tile };
-    let encodedAction = json::encode(&action).unwrap();
+    let encoded_action = json::encode(&action).unwrap();
     let url = format!("{}/action", server_url);
     let client = Client::new();
     let result: Result<Response, hyper::error::Error> = client
         .post(&url)
-        .body(encodedAction.as_bytes())
+        .body(encoded_action.as_bytes())
         .send();
     let response = result
-        .map_err(|_| "Could not get state, is the server running and do you have the correct server URL?".to_string())
-        .and_then(parse_body)
-        .and_then(parse_state);
+        .map_err(|e| format!("Error placing tile: {}", e.to_string()))
+        .and_then(decode_body);
     match response {
         Ok(game) => println!("{}", print_game(&game)),
         Err(e) => println!("{:?}", e)
@@ -51,20 +47,23 @@ fn get_state(server_url: &str) -> Result<Game, String> {
     let result: Result<Response, hyper::error::Error> = client.get(&url).send();
     result
         .map_err(|_| "Could not get state, is the server running and do you have the correct server URL?".to_string())
-        .and_then(parse_body)
-        .and_then(parse_state)
-} 
+        .and_then(decode_body)
+}
+
+fn decode_body<T: Decodable>(response: Response) -> Result<T, String> {
+    parse_body(response)
+        .and_then(|body| {
+            json::decode(&body)
+                  .map_err(|e| format!("Error parsing response '{}': {}", body, e))
+        })
+}
 
 fn parse_body(mut response: Response) -> Result<String, String> {
     let mut buf = String::new();
     match response.read_to_string(&mut buf) {
         Ok(_) => Ok(buf),
-        Err(_) => Err("Could not parse body".to_string())
+        Err(_) => Err("Could not read body contents".to_string())
     }
-}
-
-fn parse_state(mut state_json: String) -> Result<Game, String> {
-    json::decode(&state_json).map_err(|_| "Could not parse state".to_string())
 }
 
 fn print_game(game: &Game) -> String {
@@ -158,7 +157,7 @@ fn print_tile(slot: &Tile) -> String {
 fn start_repl(server_url: &str) {
     loop {
         print!("$ ");
-        io::stdout().flush();
+        let _ = io::stdout().flush();
         match read_command() {
             Ok(cmd) => run_command(server_url, cmd),
             Err(e) => println!("{}", e)

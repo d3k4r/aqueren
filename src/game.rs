@@ -2,7 +2,6 @@ extern crate rand;
 
 use types::*;
 use std::collections::HashSet;
-use std::iter::FromIterator;
 
 pub fn new_actions() -> Vec<Action> {
     let actions: Vec<Action> = Vec::new();
@@ -110,7 +109,7 @@ fn draw_tile(game: &Game) -> Result<Game, String> {
         return Err(error_msg)
     }
     let remaining = get_remaining_tiles(&game);
-    let (mut tiles, new_remaining) = choose_tiles(remaining, 1);
+    let (mut tiles, _) = choose_tiles(remaining, 1);
     let drawn_tile = tiles.pop().unwrap();
     let new_players = add_tile_to_player(game.players.clone(), game.turn.clone(), &drawn_tile);
     Ok(Game {
