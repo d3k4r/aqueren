@@ -24,33 +24,37 @@ fn dump_state(server_url: &str) {
 }
 
 fn place_tile(server_url: &str, tile: Tile) {
-    let action = PlaceTileCmd { tile: tile };
-    let encoded_action = json::encode(&action).unwrap();
-    let url = format!("{}/action", server_url);
-    let client = Client::new();
-    let result: Result<Response, hyper::error::Error> = client
-        .post(&url)
-        .body(encoded_action.as_bytes())
-        .send();
-    let response = result
-        .map_err(|e| format!("Error placing tile: {}", e.to_string()))
-        .and_then(decode_body);
+    let response = encode_place_tile(tile)
+        .and_then(|action| send_place_tile(server_url, action));
     match response {
         Ok(game) => println!("{}", print_game(&game)),
         Err(e) => println!("{:?}", e)
     }
 }
 
-fn get_state(server_url: &str) -> Result<Game, String> {
-    let url = format!("{}/state", server_url);
-    let client = Client::new();
-    let result: Result<Response, hyper::error::Error> = client.get(&url).send();
-    result
-        .map_err(|_| "Could not get state, is the server running and do you have the correct server URL?".to_string())
-        .and_then(decode_body)
+fn encode_place_tile(tile: Tile) -> Result<String, String> {
+    json::encode(&PlaceTileCmd { tile: tile })
+        .map_err(|e| e.to_string())
 }
 
-fn decode_body<T: Decodable>(response: Response) -> Result<T, String> {
+fn send_place_tile(server_url: &str, action: String) -> Result<Game, String> {
+    Client::new()
+        .post(&format!("{}/action", server_url))
+        .body(action.as_bytes())
+        .send()
+        .map_err(|e| format!("Error placing tile: {}", e.to_string()))
+        .and_then(decode_response)
+}
+
+fn get_state(server_url: &str) -> Result<Game, String> {
+    Client::new()
+        .get(&format!("{}/state", server_url))
+        .send()
+        .map_err(|e| format!("Error getting state: {}", e.to_string()))
+        .and_then(decode_response)
+}
+
+fn decode_response<T: Decodable>(response: Response) -> Result<T, String> {
     parse_body(response)
         .and_then(|body| {
             json::decode(&body)
@@ -62,21 +66,23 @@ fn parse_body(mut response: Response) -> Result<String, String> {
     let mut buf = String::new();
     match response.read_to_string(&mut buf) {
         Ok(_) => Ok(buf),
-        Err(_) => Err("Could not read body contents".to_string())
+        Err(e) => Err(format!("Could not read body: {}", e))
     }
 }
 
 fn print_game(game: &Game) -> String {
-    let mut string = String::new();
-    string.push_str("Game status\n");
-    string.push_str("---------------------\n");
-    string.push_str("\n");
-    string.push_str(&print_players(&game.players));
-    string.push_str("\n");
-    string.push_str(&print_board(&game.board));
-    string.push_str("\n");
-    string.push_str(&format!("Turn: Player {:?} ({:?})\n", game.turn, game.turn_state));
-    string
+    format!("Game status\n\
+             -------------------\
+             \n\
+             {players}\
+             \n\
+             {board}\
+             \n\
+             Turn: Player {current_player:?} ({turn_state:?})",
+            players=print_players(&game.players),
+            board=print_board(&game.board),
+            current_player=game.turn,
+            turn_state=game.turn_state)
 }
 
 fn row_to_char<'a>(row: u8) -> &'a str {
@@ -130,16 +136,21 @@ fn print_players(players: &Vec<Player>) -> String {
 }
 
 fn print_player(player: &Player) -> String {
-    let mut string = String::new();
-    string.push_str(&format!("Player {:?}: \n", player.id));
-    string.push_str(&format!("  Money: {:?}\n", player.money));
-    string.push_str(&format!("  Shares: {}\n", print_shares(&player.shares)));
-    string.push_str(&format!("  Tiles: {}\n", print_tiles(&player.tiles)));
-    string
+    format!("Player {player:?}:\
+             \n  Money: {money:?}\
+             \n  Shares: {shares}\
+             \n  Tiles: {tiles}",
+            player=player.id,
+            money=player.money,
+            shares=print_shares(&player.shares),
+            tiles=print_tiles(&player.tiles))
 }
 
 fn print_shares(shares: &PlayerShares) -> String {
-    format!("LUX: {}, TOW: {}, AMER: {}, FEST: {}, WW: {}, CONT: {}, IMP: {}", shares.luxor, shares.tower, shares.american, shares.festival, shares.worldwide, shares.continental, shares.imperial)
+    format!("LUX: {}, TOW: {}, AMER: {}, FEST: {}, WW: {}, CONT: {}, IMP: {}",
+            shares.luxor, shares.tower, shares.american,
+            shares.festival, shares.worldwide,
+            shares.continental, shares.imperial)
 }
 
 fn print_tiles(tiles: &Vec<Tile>) -> String {
@@ -178,10 +189,7 @@ enum Cmd {
 }
 
 fn read_command() -> Result<Cmd, String> {
-    match read_input() {
-        Ok(string) => parse_command(&string),
-        Err(e) => Err(e)
-    }
+    read_input().and_then(|s| parse_command(&s))
 }
 
 fn parse_command(string: &str) -> Result<Cmd, String> {
