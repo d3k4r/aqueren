@@ -4,8 +4,9 @@ extern crate rustc_serialize;
 mod game;
 mod types;
 
-use types::{Action, Game, TurnResult};
+use types::{Action, Game, PlaceTileCmd, TurnResult};
 
+use std::sync::Mutex;
 use std::io::Read;
 use rustc_serialize::json;
 use hyper::{Get, Post};
@@ -23,19 +24,13 @@ macro_rules! try_return(
     );
 
 struct GameHandler {
-    actions: Vec<Action>,
+    actions: Mutex<Vec<Action>>,
     initial_game: Game
-}
-
-#[derive(RustcDecodable, Debug)]
-struct ActionTile {
-    player: u8,
-    tile: types::Tile
 }
 
 impl Handler for GameHandler {
     fn handle(&self, mut req: Request, mut res: Response) {
-        let actions = &self.actions;
+        let mut actions = self.actions.lock().unwrap();
         let initial_game = &self.initial_game;
         let mut body: String  = "".to_string();
         let _ = req.read_to_string(&mut body);
@@ -49,7 +44,8 @@ impl Handler for GameHandler {
 
         match (req.method, path.as_ref()) {
             (Get, "/state") => {
-                let result = game::compute_state(initial_game, actions);
+                println!("/state");
+                let result = game::compute_state(initial_game, &actions);
                 match result {
                     TurnResult::Success(game) => {
                         let encoded = json::encode(&game).unwrap();
@@ -61,25 +57,38 @@ impl Handler for GameHandler {
                 }
             },
             (Post, "/action") => {
-                let action_tile: ActionTile = json::decode(&body).unwrap();
-                let player = types::PlayerId::new(action_tile.player).unwrap();
-                let tile = types::Tile::new(action_tile.tile.row,action_tile.tile.col).unwrap();
-                let action = Action::PlaceTile { player: player, tile: tile};
-                let result = game::compute_state(initial_game, actions);
-                match result {
-                    TurnResult::Success(game) => {
-                        match game::play_turn(&game, &action) {
-                            TurnResult::Success(game_after) => {
-                                let encoded = json::encode(&game_after).unwrap();
-                                try_return!(res.send(encoded.as_bytes()));
+                println!("/action");
+                let cmd: Result<PlaceTileCmd, json::DecoderError> = json::decode(&body);
+                match cmd {
+                    Ok(cmd) => {
+                        println!("/action got command");
+                        let result = game::compute_state(initial_game, &actions);
+                        match result {
+                            TurnResult::Success(game) => {
+                                println!("/action got game");
+                                let action = Action::PlaceTile { player: game.turn.clone(), tile: cmd.tile };
+                                match game::play_turn(&game, &action) {
+                                    TurnResult::Success(game_after) => {
+                                        println!("/action ran action");
+                                        actions.push(action);
+                                        let encoded = json::encode(&game_after).unwrap();
+                                        try_return!(res.send(encoded.as_bytes()));
+                                    }
+                                    TurnResult::Error(e) => {
+                                        println!("/action error");
+                                        try_return!(res.send(format!("{{\"error\": \"{}\"}}", e).as_bytes()));
+                                    }
+                                }
                             }
-                            _ => {
-                                try_return!(res.send(b"{\"error\": \"Invalid tile\"}"));
+                            TurnResult::Error(error) => {
+                                println!("/action some error ");
+                                try_return!(res.send(error.as_bytes()));
                             }
                         }
-                    }
-                    TurnResult::Error(error) => {
-                        try_return!(res.send(error.as_bytes()));
+                    },
+                    Err(e) => {
+                        println!("/action bad action");
+                        try_return!(res.send("Bad action!".as_bytes()))
                     }
                 }
             },
@@ -92,10 +101,11 @@ impl Handler for GameHandler {
 }
 
 fn main() {
-    let actions = game::new_actions();
+    let actions = Mutex::new(game::new_actions());
     let initial_game = game::new_game();
+    let mut handler = GameHandler { actions: actions, initial_game: initial_game};
     let server = Server::http("localhost:3001").unwrap();
     println!("Starting server on localhost:3001");
 
-    let _ = server.handle(GameHandler { actions: actions, initial_game: initial_game} );
+    let _ = server.handle(handler);
 }
