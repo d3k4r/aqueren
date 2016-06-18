@@ -2,7 +2,8 @@ extern crate aqueren;
 extern crate hyper;
 extern crate rustc_serialize;
 
-use aqueren::types::{Board, COLS, Game, Player, PlaceTileCmd, PlayerShares, Slot, Tile};
+use aqueren::server::{PlaceTileCmd};
+use aqueren::types::{Board, COLS, Game, Player, PlayerShares, Slot, Tile};
 use hyper::client::Client;
 use hyper::client::response::Response;
 use rustc_serialize::json;

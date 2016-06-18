@@ -102,8 +102,3 @@ pub enum TurnResult {
     Success(Game),
     Error(String)
 }
-
-#[derive(RustcDecodable, RustcEncodable, Debug)]
-pub struct PlaceTileCmd {
-    pub tile: Tile
-}
