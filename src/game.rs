@@ -80,16 +80,16 @@ fn has_tile_on_slot(tiles: & Vec<Tile>, row: u8, col: u8) -> bool {
     tiles.iter().any(|t| t.row() == row && t.col() == col)
 }
 
-pub fn compute_state(last_state: &Game, actions: &Vec<Action>) -> TurnResult {
-    actions.iter().fold(TurnResult::Success(last_state.clone()), |last_result, action| {
+pub fn compute_state(last_state: &Game, actions: &Vec<Action>) -> Result<Game, String> {
+    actions.iter().fold(Ok(last_state.clone()), |last_result, action| {
         match last_result {
-            TurnResult::Success(game) => { play_turn(&game, action) }
-            TurnResult::Error(_) => { last_result }
+            Ok(game) => { play_turn(&game, action) }
+            Err(_) => { last_result }
         }
     })
 }
 
-pub fn play_turn(game: &Game, action: &Action) -> TurnResult {
+pub fn play_turn(game: &Game, action: &Action) -> Result<Game, String> {
     match *action {
         Action::DrawTile => {
             draw_tile(game)
@@ -104,16 +104,16 @@ pub fn play_turn(game: &Game, action: &Action) -> TurnResult {
     }
 }
 
-fn draw_tile(game: &Game) -> TurnResult {
+fn draw_tile(game: &Game) -> Result<Game, String> {
     if game.turn_state != TurnState::Drawing && game.turn_state != TurnState::BuyingOrDrawing {
         let error_msg = format!("Error drawing tile: player {:?} is not allowed to draw a tile", game.turn);
-        return TurnResult::Error(error_msg)
+        return Err(error_msg)
     }
     let remaining = get_remaining_tiles(&game);
     let (mut tiles, new_remaining) = choose_tiles(remaining, 1);
     let drawn_tile = tiles.pop().unwrap();
     let new_players = add_tile_to_player(game.players.clone(), game.turn.clone(), &drawn_tile);
-    TurnResult::Success(Game {
+    Ok(Game {
         board: game.board.clone(),
         players: new_players,
         turn: next_turn(game.turn.clone()),
@@ -144,17 +144,17 @@ fn next_turn(player_id: PlayerId) -> PlayerId {
     }
 }
 
-fn place_tile(game: &Game, player_id: PlayerId, tile: &Tile) -> TurnResult {
+fn place_tile(game: &Game, player_id: PlayerId, tile: &Tile) -> Result<Game, String> {
     if !game_player_has_turn(game, player_id.clone()) {
         let error_msg = format!("Error placing tile: player {:?} does not have turn", player_id);
-        return TurnResult::Error(error_msg)
+        return Err(error_msg)
     }
     if !game_player_has_tile(game, player_id.clone(), tile) {
         let error_msg = format!("Error placing tile: player {:?} does not have tile {:?}", player_id, *tile);
-        return TurnResult::Error(error_msg)
+        return Err(error_msg)
     }
     let new_players = remove_tile_from_player(game.players.clone(), player_id.clone(), tile);
-    TurnResult::Success(Game {
+    Ok(Game {
         board: place_tile_on_board(&game.board, &tile),
         players: new_players,
         turn: game.turn.clone(),
@@ -243,7 +243,7 @@ fn place_tile_on_board(board: &Board, tile: &Tile) -> Board {
     Board { slots: slots }
 }
 
-fn buy_stocks(game: &Game, player: PlayerId, hotel1: Option<Hotel>, hotel2: Option<Hotel>, hotel3: Option<Hotel>) -> TurnResult {
+fn buy_stocks(game: &Game, player: PlayerId, hotel1: Option<Hotel>, hotel2: Option<Hotel>, hotel3: Option<Hotel>) -> Result<Game, String> {
     let new_players: Vec<Player> = game.players
         .iter()
         .map(|p| {
@@ -254,7 +254,7 @@ fn buy_stocks(game: &Game, player: PlayerId, hotel1: Option<Hotel>, hotel2: Opti
             }
         })
         .collect();
-    TurnResult::Success(Game {
+    Ok(Game {
         board: game.board.clone(),
         players: new_players,
         turn: game.turn.clone(),

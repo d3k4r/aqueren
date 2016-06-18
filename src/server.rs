@@ -2,13 +2,15 @@ extern crate hyper;
 extern crate rustc_serialize;
 
 use game;
-use types::{Action, Game, Tile, TurnResult};
+use types::{Action, Game, Tile};
 
 use std::sync::Mutex;
 use std::io::Read;
 use rustc_serialize::json;
+use rustc_serialize::Encodable;
 use self::hyper::{Get, Post};
 use self::hyper::header::ContentLength;
+use self::hyper::method::Method;
 use self::hyper::server::{Handler, Request, Response, Server};
 use self::hyper::uri::RequestUri::AbsolutePath;
 
@@ -17,84 +19,28 @@ pub struct PlaceTileCmd {
     pub tile: Tile
 }
 
-macro_rules! try_return(
-    ($e:expr) => {{
-        match $e {
-            Ok(v) => v,
-            Err(e) => { println!("Error: {}", e); return; }
-        }
-    }}
-    );
-
 struct GameHandler {
     actions: Mutex<Vec<Action>>,
     initial_game: Game
 }
 
 impl Handler for GameHandler {
-    fn handle(&self, mut req: Request, mut res: Response) {
+    fn handle(&self, req: Request, mut res: Response) {
         let mut actions = self.actions.lock().unwrap();
-        let initial_game = &self.initial_game;
-        let mut body: String  = "".to_string();
-        let _ = req.read_to_string(&mut body);
-
-        let path = match req.uri {
-            AbsolutePath(ref path) => {
-                path
-            },
-            _ => panic!("Unsupported URI format."),
-        };
-
-        match (req.method, path.as_ref()) {
-            (Get, "/state") => {
-                println!("/state");
-                let result = game::compute_state(initial_game, &actions);
-                match result {
-                    TurnResult::Success(game) => {
-                        let encoded = json::encode(&game).unwrap();
-                        try_return!(res.send(encoded.as_bytes()));
-                    }
-                    TurnResult::Error(error) => {
-                        try_return!(res.send(error.as_bytes()));
-                    }
-                }
-            },
+        let game = game::compute_state(&self.initial_game, &actions).unwrap();
+        let (method, path, body) = parse_request(req);
+        println!("{} {}", method, path);
+        match (method, path.as_ref()) {
+            (Get, "/state") => send_json(&game, res),
             (Post, "/action") => {
-                println!("/action");
-                let cmd: Result<PlaceTileCmd, json::DecoderError> = json::decode(&body);
-                match cmd {
-                    Ok(cmd) => {
-                        println!("/action got command");
-                        let result = game::compute_state(initial_game, &actions);
-                        match result {
-                            TurnResult::Success(game) => {
-                                println!("/action got game");
-                                let action = Action::PlaceTile { player: game.turn.clone(), tile: cmd.tile };
-                                match game::play_turn(&game, &action) {
-                                    TurnResult::Success(game_after) => {
-                                        println!("/action ran action");
-                                        actions.push(action);
-                                        let encoded = json::encode(&game_after).unwrap();
-                                        try_return!(res.send(encoded.as_bytes()));
-                                    }
-                                    TurnResult::Error(e) => {
-                                        println!("/action error");
-                                        try_return!(res.send(format!("{{\"error\": \"{}\"}}", e).as_bytes()));
-                                    }
-                                }
-                            }
-                            TurnResult::Error(error) => {
-                                println!("/action some error ");
-                                try_return!(res.send(error.as_bytes()));
-                            }
-                        }
+                match handle_action(&game, body) {
+                    Ok((game_after, action)) => {
+                        actions.push(action);
+                        send_json(&game_after, res)
                     },
-                    Err(e) => {
-                        println!("/action bad action");
-                        try_return!(res.send("Bad action!".as_bytes()))
-                    }
+                    Err(e) => send_error(e, res)
                 }
-            },
+            }
             _ => {
                 *res.status_mut() = hyper::BadRequest;
                 (*res.headers_mut()).set(ContentLength(0));
@@ -103,12 +49,48 @@ impl Handler for GameHandler {
     }
 }
 
+fn parse_request(mut req: Request) -> (Method, String, String) {
+    let mut body: String = "".to_string();
+    let _ = req.read_to_string(&mut body);
+    let path = match req.uri {
+        AbsolutePath(ref p) => { p },
+        _ => panic!("Unsupported URI format."),
+    };
+    (req.method, path.clone(), body)
+}
+
+fn send_json<T: Encodable>(object: &T, res: Response) {
+    let encoded = json::encode(object).unwrap();
+    match res.send(encoded.as_bytes()) {
+        Ok(_) => {},
+        Err(e) => { println!("Error sending: {}", e) }
+    }
+}
+
+fn send_error(error_msg: String, res: Response) {
+    match res.send(error_msg.as_bytes()) {
+        Ok(_) => {},
+        Err(e) => { println!("Error sending: {}", e) }
+    }
+}
+
+fn handle_action(game: &Game, body: String) -> Result<(Game, Action), String> {
+    match parse_action(&game, body) {
+        Ok(action) => game::play_turn(&game, &action).map(|game_after| (game_after, action)),
+        Err(e) => Err(e)
+    }
+}
+
+fn parse_action(game_before: &Game, json: String) -> Result<Action, String> {
+    let cmd: Result<PlaceTileCmd, String> = json::decode(&json).map_err(|e| e.to_string());
+    cmd.map(|c| Action::PlaceTile { player: game_before.turn.clone(), tile: c.tile })
+}
+
 pub fn run_server() {
     let actions = Mutex::new(game::new_actions());
     let initial_game = game::new_game();
-    let mut handler = GameHandler { actions: actions, initial_game: initial_game};
+    let handler = GameHandler { actions: actions, initial_game: initial_game};
     let server = Server::http("localhost:3001").unwrap();
     println!("Starting server on localhost:3001");
-
     let _ = server.handle(handler);
 }

@@ -97,8 +97,3 @@ pub enum Action {
     DrawTile,
     EndGame
 }
-
-pub enum TurnResult {
-    Success(Game),
-    Error(String)
-}
